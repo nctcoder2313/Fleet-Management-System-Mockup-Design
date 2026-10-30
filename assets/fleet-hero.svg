@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1200" viewBox="0 0 1440 1200" fill="none">
+  <defs>
+    <linearGradient id="sky" x1="120" y1="0" x2="1090" y2="1000" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset=".58" stop-color="#1746A2"/>
+      <stop offset="1" stop-color="#102D70"/>
+    </linearGradient>
+    <linearGradient id="road" x1="602" y1="752" x2="930" y2="1200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#244C94"/>
+      <stop offset="1" stop-color="#0D255A"/>
+    </linearGradient>
+    <linearGradient id="truck" x1="290" y1="670" x2="290" y2="879" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#D9E7FF"/>
+    </linearGradient>
+    <linearGradient id="truck2" x1="935" y1="749" x2="935" y2="907" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B9D4FF"/>
+      <stop offset="1" stop-color="#8DB4FF"/>
+    </linearGradient>
+    <pattern id="grid" width="54" height="54" patternUnits="userSpaceOnUse">
+      <path d="M54 0H0V54" stroke="#fff" stroke-opacity=".055"/>
+    </pattern>
+    <filter id="shadow" x="202" y="625" width="884" height="336" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="17"/>
+    </filter>
+  </defs>
+  <path fill="url(#sky)" d="M0 0h1440v1200H0z"/>
+  <path fill="url(#grid)" d="M0 0h1440v1200H0z"/>
+  <circle cx="1115" cy="255" r="260" fill="#6BA8FF" fill-opacity=".09"/>
+  <circle cx="1115" cy="255" r="196" stroke="#B8D5FF" stroke-opacity=".12"/>
+  <circle cx="1115" cy="255" r="143" stroke="#B8D5FF" stroke-opacity=".1"/>
+  <path d="M0 610 244 481l206 105 205-143 184 90 255-163 346 163v264H0V610Z" fill="#688BC7" fill-opacity=".17"/>
+  <path d="m0 683 300-159 219 131 231-179 203 136 242-156 245 149v226H0V683Z" fill="#92B3E8" fill-opacity=".16"/>
+  <path d="M0 807c183-70 331-91 501-40 185 56 269-52 474-34 165 15 288 74 465 31v436H0V807Z" fill="#143979" fill-opacity=".62"/>
+  <path d="M544 1200 696 747h172l214 453H544Z" fill="url(#road)" fill-opacity=".9"/>
+  <path d="m771 795-14 92h34l-2-92h-18Zm-27 156-15 93h52l-5-93h-32Zm-28 181-10 68h76l-7-68h-59Z" fill="#D9E6FF" fill-opacity=".65"/>
+  <ellipse cx="631" cy="875" rx="404" ry="50" fill="#061B49" fill-opacity=".44" filter="url(#shadow)"/>
+  <g transform="translate(185 608)">
+    <path d="M69 218h424c15 0 28 12 28 27v48H52v-56c0-11 7-19 17-19Z" fill="url(#truck)"/>
+    <path d="M74 112c0-14 11-25 25-25h262c14 0 25 11 25 25v126H74V112Z" fill="url(#truck)"/>
+    <path d="M99 115c0-6 5-11 11-11h221c6 0 11 5 11 11v97H99v-97Z" fill="#C5DCFF"/>
+    <path d="M227 104h103c6 0 11 5 11 11v97H227V104Z" fill="#9CC3FF"/>
+    <path d="M87 238h282v18H87z" fill="#3478F6"/>
+    <path d="M137 171h156" stroke="#7AAAFF" stroke-width="4" stroke-linecap="round"/>
+    <rect x="40" y="264" width="481" height="18" rx="9" fill="#AFCBFF"/>
+    <path d="M381 133h71c9 0 18 5 23 13l47 72H381V133Z" fill="#fff"/>
+    <path d="M401 148h47c4 0 8 2 11 6l35 48H401v-54Z" fill="#9CC3FF"/>
+    <path d="M456 223h54" stroke="#3478F6" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="145" cy="280" r="35" fill="#102D70"/>
+    <circle cx="145" cy="280" r="18" fill="#AFCBFF"/>
+    <circle cx="435" cy="280" r="35" fill="#102D70"/>
+    <circle cx="435" cy="280" r="18" fill="#AFCBFF"/>
+    <rect x="65" y="237" width="18" height="13" rx="4" fill="#FFA65B"/>
+  </g>
+  <g transform="translate(840 705)">
+    <path d="M36 157h257v89H22v-75c0-8 6-14 14-14Z" fill="url(#truck2)"/>
+    <path d="M47 66c0-11 9-20 20-20h149c11 0 20 9 20 20v102H47V66Z" fill="url(#truck2)"/>
+    <path d="M65 70c0-4 4-8 8-8h122c4 0 8 4 8 8v74H65V70Z" fill="#E5F0FF"/>
+    <path d="M136 62h59c4 0 8 4 8 8v74h-67V62Z" fill="#C2DBFF"/>
+    <path d="M236 97h37c7 0 13 3 17 9l42 54H236V97Z" fill="#A8C9FF"/>
+    <path d="M253 111h20c4 0 7 2 9 5l27 34h-56v-39Z" fill="#E5F0FF"/>
+    <rect x="12" y="239" width="332" height="15" rx="7.5" fill="#8DB4FF"/>
+    <circle cx="91" cy="254" r="26" fill="#102D70"/>
+    <circle cx="91" cy="254" r="13" fill="#D2E3FF"/>
+    <circle cx="281" cy="254" r="26" fill="#102D70"/>
+    <circle cx="281" cy="254" r="13" fill="#D2E3FF"/>
+  </g>
+  <g fill="#DCEAFF" fill-opacity=".7">
+    <circle cx="210" cy="325" r="3"/>
+    <circle cx="875" cy="240" r="3"/>
+    <circle cx="1330" cy="536" r="3"/>
+    <circle cx="1010" cy="462" r="2"/>
+    <circle cx="615" cy="347" r="2"/>
+    <circle cx="1210" cy="384" r="2"/>
+  </g>
+</svg>
