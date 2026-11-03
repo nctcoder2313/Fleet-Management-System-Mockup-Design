@@ -1,4 +1,11 @@
 <?php
+declare(strict_types=1);
+
+$pdo = require __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/rbac.php';
+startSecureSession();
+$manager = requireRole($pdo, 'manager');
+
 $today = date('l, F j, Y');
 $filters = [
     'all' => 'All vehicles',
@@ -105,7 +112,7 @@ $statusStyles = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fleet Monitoring | Head Admin</title>
+    <title>Fleet Monitoring | Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-[#dbeafe] text-slate-900 antialiased">
@@ -126,8 +133,8 @@ $statusStyles = [
                 </div>
             </div>
             <nav class="flex-1 space-y-1 px-4 py-6" aria-label="Main navigation">
-                <p class="px-3 pb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Organization</p>
-                <a href="dashboard.php" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
+                <p class="px-3 pb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Operations</p>
+                <a href="../manager/dashboard.php" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10Zm10 8h8V11h-8v10Zm0-12h8V3h-8v6ZM3 21h8v-6H3v6Z" /></svg>
                     Overview
                 </a>
@@ -135,21 +142,13 @@ $statusStyles = [
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.5V18a1 1 0 0 0 1 1h1m15-5.5V18a1 1 0 0 1-1 1h-1M3 13.5l1.5-5A2 2 0 0 1 6.4 7h11.2a2 2 0 0 1 1.9 1.5l1.5 5M3 13.5h18M6 19h12M7 16h.01M17 16h.01" /></svg>
                     Fleet monitoring
                 </a>
-                <a href="dashboard.php#users" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16 19h5v-1a4 4 0 0 0-5.7-3.6M16 19H8m8 0v-1a5 5 0 0 0-10 0v1m2-11a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z" /></svg>
-                    User access
-                </a>
-                <a href="dashboard.php#reports" class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V5m0 14h16M8 15v-4m4 4V7m4 8v-6" /></svg>
-                    Reports
-                </a>
             </nav>
             <div class="border-t border-slate-100 p-4">
                 <div class="flex items-center gap-3 rounded-lg bg-slate-50 p-3">
                     <div class="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">HA</div>
                     <div class="min-w-0">
-                        <p class="truncate text-sm font-semibold">Head Administrator</p>
-                        <p class="text-xs text-slate-500">Organization-wide access</p>
+                        <p class="truncate text-sm font-semibold"><?= $escape($manager['name']) ?></p>
+                        <p class="text-xs text-slate-500">Manager</p>
                     </div>
                 </div>
             </div>
@@ -166,16 +165,14 @@ $statusStyles = [
                 </button>
             </header>
             <nav id="mobile-menu" class="hidden border-b border-blue-100 bg-white px-4 py-3 lg:hidden" aria-label="Mobile navigation">
-                <a href="dashboard.php" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Overview</a>
+                <a href="../manager/dashboard.php" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Overview</a>
                 <a href="fleet.php" aria-current="page" class="mt-1 block rounded-lg bg-blue-50 px-3 py-2.5 text-sm font-semibold text-blue-800">Fleet monitoring</a>
-                <a href="dashboard.php#users" class="mt-1 block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">User access</a>
-                <a href="dashboard.php#reports" class="mt-1 block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100">Reports</a>
             </nav>
 
             <div class="space-y-6 p-5 sm:p-8">
                 <div class="flex flex-wrap items-end justify-between gap-3">
                     <div>
-                        <a href="dashboard.php" class="text-sm font-semibold text-blue-800 hover:underline">← Back to dashboard</a>
+                        <a href="../manager/dashboard.php" class="text-sm font-semibold text-blue-800 hover:underline">← Back to dashboard</a>
                         <h2 class="mt-3 text-2xl font-bold tracking-tight">Fleet overview</h2>
                         <p class="mt-1 text-sm text-slate-600">Search and review vehicle status, reported condition, fuel, and last known location.</p>
                     </div>
@@ -253,7 +250,7 @@ $statusStyles = [
                     </div>
                     <p class="mt-3 text-xs text-slate-500">Showing <?= count($matchingVehicles) ?> of <?= count($vehicles) ?> sample vehicle records · Fleet total: 51 · Locations and telemetry are illustrative</p>
                 </section>
-                <footer class="pb-2 text-center text-xs text-slate-500">FleetFlow Head Admin · Sample data, not live vehicle telemetry</footer>
+                <footer class="pb-2 text-center text-xs text-slate-500">FleetFlow Manager · Sample data, not live vehicle telemetry</footer>
             </div>
         </main>
     </div>
