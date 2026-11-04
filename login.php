@@ -53,6 +53,7 @@ $roles = [
     'manager' => 'Manager',
     'user' => 'User',
     'accounting' => 'Accounting',
+    'driver' => 'Driver',
 ];
 ?>
 <!doctype html>

@@ -29,7 +29,7 @@ try {
     if (!$requesterId) {
         $pdo->rollBack();
         $_SESSION['flash_message'] = 'This request no longer exists.';
-        header('Location: dashboard.php#access-requests');
+        header('Location: access_requests.php');
         exit;
     }
 
@@ -48,7 +48,7 @@ try {
     if (!$request) {
         $pdo->rollBack();
         $_SESSION['flash_message'] = 'This request has already been reviewed or no longer exists.';
-        header('Location: dashboard.php#access-requests');
+        header('Location: access_requests.php');
         exit;
     }
 
@@ -136,5 +136,5 @@ try {
     throw $exception;
 }
 
-header('Location: dashboard.php#access-requests');
+header('Location: access_requests.php');
 exit;

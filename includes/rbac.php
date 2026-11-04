@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const RBAC_ROLES = ['head_admin', 'admin', 'manager', 'user', 'accounting'];
+const RBAC_ROLES = ['head_admin', 'admin', 'manager', 'user', 'accounting', 'driver'];
 const ROLE_ELEVATION_HOURS_DEFAULT = 8;
 
 function startSecureSession(): void
@@ -123,6 +123,7 @@ function dashboardPathForRole(string $role): string
         'manager' => '/Fleet-Management-System-Mockup-Design/dashboard/manager/dashboard.php',
         'user' => '/Fleet-Management-System-Mockup-Design/dashboard/user/dashboard.php',
         'accounting' => '/Fleet-Management-System-Mockup-Design/dashboard/accounting/dashboard.php',
+        'driver' => '/Fleet-Management-System-Mockup-Design/dashboard/driver/dashboard.php',
         default => throw new InvalidArgumentException('Unknown application role.'),
     };
 }
