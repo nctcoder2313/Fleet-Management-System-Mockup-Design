@@ -61,7 +61,7 @@ declare(strict_types=1);
 <body class="font-sans text-slate-900 antialiased">
     <main class="gradient-surface relative z-10 flex min-h-screen items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#eaf4ff] to-[#cfe4ff] px-4 py-20 sm:px-6 sm:py-16 md:py-4">
         <section class="w-full max-w-[480px] rounded-2xl border border-blue-100 bg-white p-5 shadow-[0_20px_60px_rgba(30,64,175,0.16)] sm:p-6">
-            <a class="mb-3 flex justify-center" href="index.php" aria-label="Paragon Fleet home">
+            <a class="mb-3 flex justify-center" href="login.php" aria-label="Paragon Fleet home">
                 <img class="h-auto w-36" src="assets/paragon.webp" alt="Paragon Communications Corp.">
             </a>
             <div class="mb-4 text-center">
@@ -109,7 +109,7 @@ declare(strict_types=1);
             </p>
 
             <p class="mt-4 border-t border-slate-100 pt-3 text-center">
-                <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="index.php">
+                <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="login.php">
                     Back to log in
                 </a>
             </p>
