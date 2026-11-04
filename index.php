@@ -3,6 +3,12 @@ declare(strict_types=1);
 
 $db = require __DIR__ . '/database.php';
 
+$requestedView = $_GET['view'] ?? 'overview';
+$validViews = ['overview', 'fleet', 'trips', 'drivers', 'maintenance', 'reports', 'settings'];
+$activeView = is_string($requestedView) && in_array($requestedView, $validViews, true)
+    ? $requestedView
+    : 'overview';
+
 $vehicleStats = $db->query(
     'SELECT status, COUNT(*) AS count FROM vehicles GROUP BY status'
 )->fetchAll(PDO::FETCH_ASSOC);
@@ -32,6 +38,12 @@ $trips = $db->query(
      ORDER BY trips.eta'
 )->fetchAll(PDO::FETCH_ASSOC);
 
+$allTrips = $db->query(
+    'SELECT id, vehicle_code, driver_name, origin, destination, status, delay_minutes, eta
+     FROM trips
+     ORDER BY CASE status WHEN \'active\' THEN 0 WHEN \'upcoming\' THEN 1 ELSE 2 END, eta'
+)->fetchAll(PDO::FETCH_ASSOC);
+
 $alerts = $db->query(
     'SELECT title, detail, severity, time_label
      FROM alerts
@@ -46,8 +58,14 @@ $maintenanceItems = $db->query(
      ORDER BY CASE state WHEN \'overdue\' THEN 0 WHEN \'due soon\' THEN 1 ELSE 2 END, due_date'
 )->fetchAll(PDO::FETCH_ASSOC);
 
+$allMaintenanceItems = $db->query(
+    'SELECT id, vehicle_code, task, depot, department, due_date, state
+     FROM maintenance
+     ORDER BY CASE state WHEN \'overdue\' THEN 0 WHEN \'due soon\' THEN 1 WHEN \'requested\' THEN 2 ELSE 3 END, due_date'
+)->fetchAll(PDO::FETCH_ASSOC);
+
 $drivers = $db->query(
-    'SELECT drivers.name, drivers.on_duty, vehicles.vehicle_code, vehicles.assignment
+    'SELECT drivers.id, drivers.name, drivers.on_duty, vehicles.vehicle_code, vehicles.assignment
      FROM drivers
      LEFT JOIN vehicles ON vehicles.driver_name = drivers.name
      ORDER BY drivers.on_duty DESC, drivers.name'

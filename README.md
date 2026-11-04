@@ -22,12 +22,12 @@ creates `fleet.sqlite` and loads the sample data from `schema.sql`.
 
 ## Stack and interactions
 
-- Filter the fleet table using the summary cards and status tabs.
-- Search database-backed vehicles and trips from the top bar (or press Ctrl/Cmd+K).
-- Review the fleet status map, utilization and trip-completion charts, fuel trend,
-  maintenance issues by department, and recent activity.
-- Open vehicle, trip, and alert details.
-- Submit maintenance requests and issue reports; both are saved to SQLite.
+- Use the sidebar to switch between Overview, Fleet Status, Trips & Assignments,
+  Drivers, Maintenance, Reports, and Settings workspaces.
+- Overview is read-only. Search and edit vehicle, trip, driver duty, and
+  maintenance records in their respective workspaces; changes are saved to SQLite.
+- Review utilization, trip-completion, fuel, and maintenance-by-department reports.
+- Submit operational issue reports from the Maintenance workspace; reports are saved to SQLite.
 
 The manager workspace contains operational information only. It does not expose
 accounting totals, payroll or employee records, head-admin user management, or

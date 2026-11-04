@@ -95,9 +95,7 @@ h1 { margin: 9px 0 5px; font: 700 24px system-ui, sans-serif; letter-spacing: -.
 .button-primary:hover { background: var(--green-dark); }
 .button-primary > span { font-size: 15px; line-height: 1; }
 .metrics-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-.metric-card { min-width: 0; min-height: 113px; padding: 13px 14px 12px; border: 1px solid #e9edeb; border-radius: 8px; background: #fff; text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s, transform .15s; }
-.metric-card:hover { border-color: #b9d1c1; box-shadow: 0 4px 14px #253c3010; transform: translateY(-1px); }
-.metric-card.selected { border-color: #72a788; box-shadow: 0 0 0 2px #e5f0e9; }
+.metric-card { min-width: 0; min-height: 113px; padding: 13px 14px 12px; border: 1px solid #e9edeb; border-radius: 8px; background: #fff; text-align: left; }
 .metric-top { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
 .metric-label { overflow: hidden; color: #7c8982; font-size: 9px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .metric-icon { width: 25px; height: 25px; display: grid; flex: 0 0 auto; place-items: center; border-radius: 6px; font-size: 13px; }
@@ -218,6 +216,33 @@ tbody td { height: 55px; padding: 8px 10px; border-top: 1px solid #f0f2f1; font-
 .profile-more { color: #64748b; }
 .avatar-sidebar { color: #1e40af; background: #dbeafe; }
 
+.workspace-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.workspace-card .panel-heading { align-items: flex-start; }
+.workspace-card .panel-heading h2 { overflow-wrap: anywhere; }
+.record-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 0 18px 18px; }
+.record-form label { display: grid; gap: 5px; min-width: 0; color: #475569; font-size: 11px; font-weight: 600; }
+.record-form input, .record-form select { width: 100%; min-width: 0; height: 36px; padding: 0 9px; border: 1px solid #e2e8f0; border-radius: 5px; outline: 0; color: #0f172a; background: #fff; font-size: 12px; font-weight: 400; }
+.record-form input:focus, .record-form select:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px #dbeafe; }
+.record-form .button { grid-column: 1 / -1; justify-self: start; min-width: 132px; }
+.driver-assignment { display: grid; gap: 5px; margin: 0 18px 14px; padding: 11px; border-radius: 6px; color: #475569; background: #f8fafc; font-size: 12px; }
+.driver-assignment strong { color: #334155; font-size: 11px; }
+.settings-content { display: grid; gap: 0; padding: 0 18px 18px; }
+.settings-content > div { display: flex; justify-content: space-between; gap: 18px; padding: 13px 0; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 13px; }
+.settings-content strong { color: #334155; }
+.settings-content p { margin: 12px 0 0; color: #64748b; font-size: 12px; }
+.search-item[hidden] { display: none; }
+a.maintenance-action { display: inline-block; text-decoration: none; }
+
+@media (max-width: 700px) {
+  .workspace-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .record-form { gap: 10px; padding: 0 13px 14px; }
+  .record-form label { font-size: 10px; }
+  .record-form input, .record-form select { font-size: 12px; }
+  .settings-content > div { flex-direction: column; gap: 5px; font-size: 12px; }
+}
+
 .main-content { background: transparent; }
 .topbar { border-bottom-color: #e2e8f0; background: #ffffffed; }
 .breadcrumb { color: #64748b; }
@@ -234,8 +259,6 @@ tbody td { height: 55px; padding: 8px 10px; border-top: 1px solid #f0f2f1; font-
 .date-selector { color: #334155; }
 .date-selector > span:first-child, .chevron { color: #64748b; }
 .metric-card, .panel { border-color: #e2e8f0; background: #fff; }
-.metric-card:hover { border-color: #93c5fd; box-shadow: 0 4px 14px #1e40af12; }
-.metric-card.selected { border-color: #60a5fa; box-shadow: 0 0 0 2px #dbeafe; }
 .metric-label, .metric-foot, .metric-total { color: #64748b; }
 .icon-blue, .icon-green, .icon-violet, .icon-teal { color: #1d4ed8; background: #eff6ff; }
 .icon-amber { color: #b6863d; background: #fbf4e9; }

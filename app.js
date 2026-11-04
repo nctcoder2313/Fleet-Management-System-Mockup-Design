@@ -1,7 +1,6 @@
 const vehicleRows = [...document.querySelectorAll("#vehicle-rows tr")];
 const tripItems = [...document.querySelectorAll(".trip-item")];
 const filterTabs = [...document.querySelectorAll("[data-table-filter]")];
-const metricCards = [...document.querySelectorAll(".metric-card")];
 const searchInput = document.querySelector("#global-search");
 const emptyState = document.querySelector("#fleet-empty");
 const tripsEmptyState = document.querySelector("#trips-empty");
@@ -13,7 +12,7 @@ let activeFilter = "all";
 let toastTimeout;
 
 function updateFleet() {
-  const query = searchInput.value.trim().toLowerCase();
+  const query = searchInput?.value.trim().toLowerCase() || "";
   let visibleCount = 0;
 
   vehicleRows.forEach((row) => {
@@ -32,17 +31,18 @@ function updateFleet() {
     if (matchesSearch) visibleTrips += 1;
   });
 
-  emptyState.hidden = visibleCount > 0;
-  tripsEmptyState.hidden = visibleTrips > 0;
-  tableCount.textContent = `Showing ${visibleCount} of ${tableCount.dataset.total} vehicles`;
+  if (emptyState) emptyState.hidden = visibleCount > 0;
+  if (tripsEmptyState) tripsEmptyState.hidden = visibleTrips > 0;
+  if (tableCount) tableCount.textContent = `Showing ${visibleCount} of ${tableCount.dataset.total} vehicles`;
+  document.querySelectorAll(".search-item").forEach((item) => {
+    item.hidden = Boolean(query) && !item.dataset.search.includes(query);
+  });
 }
 
 function setFleetFilter(filter) {
   activeFilter = filter;
   filterTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.tableFilter === filter));
-  metricCards.forEach((card) => card.classList.toggle("selected", card.dataset.filter === filter));
   updateFleet();
-  document.querySelector("#fleet").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function showToast(message) {
@@ -66,23 +66,7 @@ function openDetails(value) {
 }
 
 filterTabs.forEach((tab) => tab.addEventListener("click", () => setFleetFilter(tab.dataset.tableFilter)));
-metricCards.forEach((card) => card.addEventListener("click", () => {
-  const filter = card.dataset.filter;
-  if (filter === "alerts") {
-    document.querySelector("#alerts").scrollIntoView({ behavior: "smooth", block: "center" });
-    document.querySelector("#alerts").classList.add("attention-highlight");
-    window.setTimeout(() => document.querySelector("#alerts").classList.remove("attention-highlight"), 1100);
-    return;
-  }
-  if (filter === "drivers") {
-    showToast("Showing vehicles with an assigned driver.");
-    setFleetFilter(filter);
-    return;
-  }
-  setFleetFilter(filter);
-}));
-
-searchInput.addEventListener("input", updateFleet);
+searchInput?.addEventListener("input", updateFleet);
 document.querySelectorAll("[data-detail]").forEach((button) => {
   button.addEventListener("click", () => openDetails(button.dataset.detail));
 });
@@ -112,7 +96,7 @@ document.querySelectorAll("[data-maintenance-request]").forEach((button) => {
     }
   });
 });
-document.querySelector("#report-issue").addEventListener("click", () => issueDialog.showModal());
+document.querySelector("#report-issue")?.addEventListener("click", () => issueDialog.showModal());
 
 document.querySelectorAll(".dialog-close").forEach((button) => {
   button.addEventListener("click", () => button.closest("dialog").close());
@@ -154,17 +138,43 @@ document.querySelector("#issue-form").addEventListener("submit", async (event) =
   }
 });
 
+document.querySelectorAll("[data-record-form]").forEach((form) => {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = form.querySelector('[type="submit"]');
+    submitButton.disabled = true;
+    const payload = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      const response = await fetch("api.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The record could not be saved.");
+      showToast(result.message);
+      window.setTimeout(() => window.location.reload(), 650);
+    } catch (error) {
+      submitButton.disabled = false;
+      showToast(error.message || "The record could not be saved. Please try again.");
+    }
+  });
+});
+
 document.addEventListener("keydown", (event) => {
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+  if (searchInput && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
     searchInput.focus();
   }
 });
 
-const today = new Date();
-document.querySelector("#today-label").textContent = new Intl.DateTimeFormat("en-US", {
-  weekday: "short",
-  month: "short",
-  day: "numeric",
-  year: "numeric"
-}).format(today);
+const todayLabel = document.querySelector("#today-label");
+if (todayLabel) {
+  todayLabel.textContent = new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date());
+}
