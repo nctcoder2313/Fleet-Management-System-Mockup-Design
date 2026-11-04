@@ -93,8 +93,8 @@ $displayRole = $signedIn
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f5f8ff">
-    <title>Sign in | Fleetwise</title>
+    <meta name="theme-color" content="#dbeafe">
+    <title>Log in | Paragon Fleet</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -110,9 +110,6 @@ $displayRole = $signedIn
                             900: '#172554'
                         }
                     },
-                    fontFamily: {
-                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif']
-                    }
                 }
             }
         };
@@ -120,21 +117,18 @@ $displayRole = $signedIn
     <style>
         :root {
             color-scheme: light;
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family: ui-sans-serif, system-ui, sans-serif;
         }
 
         body {
             margin: 0;
             min-width: 320px;
             min-height: 100vh;
-            background: #f5f8ff;
+            background: #f8fafc;
         }
 
         .hero-panel {
-            background-color: #123f9e;
-            background-image: linear-gradient(155deg, rgba(14, 46, 113, .2), rgba(11, 42, 105, .02)), url("assets/fleet-hero.svg");
-            background-position: center;
-            background-size: cover;
+            background: #fff;
         }
 
         .form-input:focus {
@@ -143,56 +137,81 @@ $displayRole = $signedIn
             outline: none;
         }
 
+        .gradient-surface {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
+        }
+
+        .gradient-surface::before {
+            content: "";
+            position: absolute;
+            inset: -25%;
+            z-index: 0;
+            background: linear-gradient(112deg, transparent 12%, rgba(59, 130, 246, .1) 38%, transparent 62%, rgba(96, 165, 250, .14) 88%, transparent);
+            filter: blur(48px);
+            pointer-events: none;
+        }
+
+        .gradient-surface > * {
+            position: relative;
+            z-index: 1;
+        }
+
         @media (max-width: 767px) {
             .hero-panel {
-                min-height: 270px;
-                background-position: center 57%;
+                min-height: 470px;
+            }
+        }
+
+        @media (min-width: 768px) and (min-height: 640px) {
+            main {
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            main > section {
+                height: 100vh;
+                min-height: 0;
             }
         }
     </style>
 </head>
 <body class="font-sans text-slate-900 antialiased">
-    <main class="min-h-screen md:grid md:grid-cols-[1.08fr_.92fr]">
-        <section class="hero-panel relative flex min-h-[310px] flex-col overflow-hidden px-7 py-7 text-white sm:px-10 md:min-h-screen md:px-12 md:py-10 lg:px-16">
-            <a class="relative z-10 inline-flex w-fit items-center gap-3 text-white" href="/" aria-label="Fleetwise home">
-                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
-                    <svg viewBox="0 0 24 24" fill="none" class="h-6 w-6" aria-hidden="true">
-                        <path d="M3 16.5h18M5.5 16.5l1-5.3a2 2 0 0 1 2-1.7h7a2 2 0 0 1 1.9 1.4l1.2 5.6M8 16.5v2m8-2v2M7.5 13h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="8" cy="17" r="1.4" fill="currentColor"/>
-                        <circle cx="16" cy="17" r="1.4" fill="currentColor"/>
-                    </svg>
-                </span>
-                <span class="text-xl font-semibold tracking-tight">fleetwise</span>
+    <main class="min-h-screen bg-slate-50 md:grid md:grid-cols-[1.08fr_.92fr]">
+        <section class="hero-panel relative flex min-h-[470px] flex-col overflow-hidden px-6 py-6 text-blue-900 sm:px-8 md:min-h-screen md:border-r md:border-slate-100 md:px-10 md:py-8 lg:px-14">
+            <a class="relative z-10 flex w-fit flex-col items-start text-blue-800" href="index.php" aria-label="Paragon Fleet home">
+                <img class="h-auto w-48 sm:w-56" src="assets/paragon.webp" alt="Paragon Communications Corp.">
             </a>
 
-            <div class="relative z-10 mt-12 max-w-lg sm:mt-14 md:mt-[clamp(4rem,13vh,9rem)]">
-                <p class="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium tracking-wide text-blue-50 backdrop-blur-sm">
-                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-300"></span>
-                    YOUR FLEET, IN SYNC
-                </p>
-                <h1 class="max-w-md text-3xl font-semibold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem]">
-                    Every mile,<br>moving you forward.
+            <div class="relative z-10 mt-6 max-w-lg sm:mt-8">
+                <h1 class="max-w-md text-2xl font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl">
+                    Your fleet,<br>always connected.
                 </h1>
-                <p class="mt-4 max-w-sm text-sm leading-6 text-blue-100 sm:text-base">
+                <p class="mt-3 max-w-sm text-sm leading-6 text-slate-600">
                     Keep your vehicles, people, and operations moving together — all from one place.
                 </p>
             </div>
 
-            <div class="relative z-10 mt-auto hidden pt-10 text-xs text-blue-100/80 md:block">
-                <span>© <?= date('Y') ?> Fleetwise</span>
-                <span class="mx-2 text-white/40">·</span>
+            <div class="flex flex-1 items-center justify-center py-5">
+                <img class="max-h-[220px] w-full object-contain sm:max-h-[280px] md:max-h-[40vh] lg:max-h-[48vh]" src="assets/fleet%20pcc%20image.jpg" alt="Paragon fleet service vehicle">
+            </div>
+
+            <div class="relative z-10 mt-auto hidden pt-6 text-xs text-slate-600 md:block">
+                <span>© <?= date('Y') ?> Paragon Communications Corp.</span>
+                <span class="mx-2 text-blue-300">·</span>
                 <span>Fleet operations, made clearer.</span>
             </div>
         </section>
 
-        <section class="flex min-h-[calc(100vh-310px)] items-center justify-center px-6 py-12 sm:px-10 md:min-h-screen md:px-12 lg:px-16">
-            <div class="w-full max-w-[410px]">
-                <div class="mb-9 md:mb-11">
-                    <p class="mb-2 text-sm font-medium text-fleet-600">Welcome back</p>
-                    <h2 class="text-3xl font-semibold tracking-tight text-slate-900 sm:text-[2rem]">
-                        <?= $signedIn ? 'You’re signed in' : 'Sign in to your account' ?>
+        <section class="gradient-surface flex min-h-[calc(100vh-470px)] items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#eaf4ff] to-[#cfe4ff] px-6 py-8 sm:px-10 md:min-h-screen md:px-10 md:py-6 lg:px-14">
+            <div class="w-full max-w-[460px] rounded-2xl border border-slate-200 bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-9">
+                <div class="mb-6">
+                    <p class="mb-1 text-lg font-semibold text-blue-700">Fleet Management and Monitoring System</p>
+                    <h2 class="text-base font-bold tracking-tight text-slate-900">
+                        <?= $signedIn ? 'You’re signed in' : 'Log in to your account' ?>
                     </h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-500">
+                    <p class="mt-1 text-xs leading-5 text-slate-500">
                         <?= $signedIn
                             ? 'Your account is ready to go.'
                             : 'Enter your work email and password to continue.' ?>
@@ -209,97 +228,58 @@ $displayRole = $signedIn
                 <?php endif; ?>
 
                 <?php if ($signedIn): ?>
-                    <div class="rounded-2xl border border-blue-100 bg-white p-6 shadow-[0_12px_40px_rgba(30,64,175,0.07)]">
+                    <div class="rounded-2xl border border-blue-100 bg-white p-5 shadow-[0_12px_40px_rgba(30,64,175,0.07)]">
                         <div class="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                             <svg viewBox="0 0 24 24" fill="none" class="h-6 w-6" aria-hidden="true">
                                 <path d="m6 12.5 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </div>
-                        <p class="text-lg font-semibold text-slate-900"><?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?></p>
-                        <p class="mt-1 text-sm text-slate-500">Signed in as <span class="font-medium text-slate-700"><?= htmlspecialchars($displayRole, ENT_QUOTES, 'UTF-8') ?></span></p>
+                        <p class="text-sm font-semibold text-slate-900">
+                            Welcome, <?= htmlspecialchars($displayName, ENT_QUOTES, 'UTF-8') ?>.
+                        </p>
+                        <p class="mt-1 text-sm text-slate-600">
+                            Signed in as <?= htmlspecialchars($displayRole, ENT_QUOTES, 'UTF-8') ?>.
+                        </p>
                         <form class="mt-6" method="post">
                             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-                            <button class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-100" type="submit" name="logout" value="1">
+                            <button class="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit" name="logout" value="1">
                                 Sign out
                             </button>
                         </form>
                     </div>
                 <?php else: ?>
-                    <form method="post" class="space-y-5" novalidate>
+                    <form method="post" action="" class="space-y-4">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
-
                         <div>
-                            <label for="email" class="mb-2 block text-sm font-medium text-slate-700">Email address</label>
-                            <div class="relative">
-                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-                                    <svg viewBox="0 0 20 20" fill="none" class="h-5 w-5" aria-hidden="true">
-                                        <rect x="2.5" y="4" width="15" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                                        <path d="m3.5 6 6.5 4.5L16.5 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                                    </svg>
-                                </span>
-                                <input class="form-input w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-slate-900 placeholder:text-slate-400 transition" id="email" name="email" type="email" autocomplete="username" placeholder="you@company.com" value="<?= htmlspecialchars((string) ($_POST['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
-                            </div>
+                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="email">Work email</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" id="email" name="email" type="email" autocomplete="username" placeholder="you@company.com" required>
                         </div>
-
                         <div>
-                            <div class="mb-2 flex items-center justify-between">
-                                <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
-                            </div>
-                            <div class="relative">
-                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
-                                    <svg viewBox="0 0 20 20" fill="none" class="h-5 w-5" aria-hidden="true">
-                                        <rect x="3.5" y="8.5" width="13" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/>
-                                        <path d="M6.5 8.5V6a3.5 3.5 0 0 1 7 0v2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                        <circle cx="10" cy="13" r="1" fill="currentColor"/>
-                                    </svg>
-                                </span>
-                                <input class="form-input w-full rounded-xl border border-slate-200 bg-white py-3 pl-11 pr-14 text-sm text-slate-900 placeholder:text-slate-400 transition" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
-                                <button class="absolute inset-y-0 right-0 flex items-center px-4 text-xs font-semibold text-slate-500 transition hover:text-fleet-600 focus:outline-none focus-visible:text-fleet-700" id="toggle-password" type="button" aria-label="Show password" aria-pressed="false">
-                                    Show
-                                </button>
-                            </div>
+                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="password">Password</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+                            <details class="mt-2 text-right">
+                                <summary class="cursor-pointer list-none text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
+                                    Forgot password?
+                                </summary>
+                                <p class="mt-2 text-left text-xs leading-5 text-slate-500">
+                                    Please contact your system administrator to reset your password.
+                                </p>
+                            </details>
                         </div>
-
-                        <button class="group flex w-full items-center justify-center gap-2 rounded-xl bg-fleet-600 px-4 py-3.5 text-sm font-semibold text-white shadow-[0_6px_14px_rgba(36,99,235,0.2)] transition hover:bg-fleet-700 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
-                            Sign in
-                            <svg viewBox="0 0 20 20" fill="none" class="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true">
-                                <path d="M4 10h12m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
+                        <div class="pt-2">
+                            <button class="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
+                                Log in
+                            </button>
+                        </div>
                     </form>
-
-                    <p class="mt-7 text-center text-sm text-slate-500">
-                        Need an account?
-                        <span class="font-medium text-slate-700">Contact your system administrator.</span>
+                    <p class="mt-5 border-t border-slate-100 pt-4 text-center">
+                        <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="request-access.php">
+                            Don’t have an account? Request access
+                        </a>
                     </p>
                 <?php endif; ?>
-
-                <p class="mt-10 text-center text-xs text-slate-400 md:hidden">© <?= date('Y') ?> Fleetwise</p>
             </div>
         </section>
     </main>
-    <script>
-        const passwordInput = document.getElementById('password');
-        const passwordToggle = document.getElementById('toggle-password');
-
-        passwordToggle?.addEventListener('click', () => {
-            const isVisible = passwordInput.type === 'text';
-            passwordInput.type = isVisible ? 'password' : 'text';
-            passwordToggle.textContent = isVisible ? 'Show' : 'Hide';
-            passwordToggle.setAttribute('aria-label', isVisible ? 'Show password' : 'Hide password');
-            passwordToggle.setAttribute('aria-pressed', String(!isVisible));
-        });
-
-        document.querySelector('form[method="post"]:not(:has([name="logout"]))')?.addEventListener('submit', (event) => {
-            const emailInput = document.getElementById('email');
-            if (!emailInput.checkValidity() || passwordInput.value.length === 0) {
-                event.preventDefault();
-                emailInput.reportValidity();
-                if (emailInput.checkValidity() && passwordInput.value.length === 0) {
-                    passwordInput.reportValidity();
-                }
-            }
-        });
-    </script>
 </body>
 </html>
