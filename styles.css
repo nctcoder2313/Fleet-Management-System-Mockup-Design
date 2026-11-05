@@ -84,7 +84,6 @@ kbd { padding: 2px 4px; border: 1px solid #e9edeb; border-radius: 3px; color: #9
 .live-pulse { width: 6px; height: 6px; border-radius: 50%; background: #4b9b6b; box-shadow: 0 0 0 3px #e6f3e9; }
 h1, h2, p { margin-top: 0; }
 h1 { margin: 9px 0 5px; font: 700 24px system-ui, sans-serif; letter-spacing: -.9px; }
-.wave { padding-left: 2px; color: #e6ad58; font-size: 17px; vertical-align: 2px; }
 .page-heading p { margin: 0; color: #84908a; font-size: 11px; }
 .heading-actions { display: flex; align-items: center; gap: 9px; }
 .date-selector { height: 35px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid #e5eae7; border-radius: 6px; background: #fff; color: #53615a; font-size: 10px; }
@@ -403,7 +402,7 @@ a.maintenance-action { display: inline-block; text-decoration: none; }
 .page-heading h1 { font-size: 18px; letter-spacing: 0; }
 
 @media (min-width: 640px) {
-  .page-heading h1 { font-size: 20px; }
+  .page-heading h1 { font-size: 30px; font-weight: 800; }
 }
 @media (max-width: 1100px) {
   .manager-overview-grid { grid-template-columns: minmax(0, 1.35fr) minmax(250px, .9fr); }
@@ -455,4 +454,93 @@ tbody td { font-size: 12px; }
   .filter-tab { font-size: 10px; }
   thead th { font-size: 9px; }
   tbody td { font-size: 11px; }
+}
+
+.current-snapshot { margin-bottom: 14px; }
+.section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+.section-heading h2 { margin: 0; color: #334155; font-size: 14px; font-weight: 700; }
+.section-heading > span { color: #64748b; font-size: 11px; text-align: right; }
+.current-snapshot .metrics-grid { margin-bottom: 0; }
+.performance-section { margin-bottom: 14px; }
+.performance-section .performance-grid { margin-bottom: 0; }
+.monthly-utilization-chart { height: 178px; display: flex; align-items: stretch; gap: 6px; padding: 12px 14px 14px; }
+.monthly-bar-column { min-width: 0; display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; }
+.monthly-bar-value { min-height: 13px; color: #64748b; font-size: 9px; line-height: 1.2; text-align: center; white-space: nowrap; }
+.monthly-utilization-bar { width: min(27px, 68%); max-height: 105px; height: var(--bar-height); min-height: 3px; margin-top: auto; border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, #60a5fa, #1d4ed8); }
+.monthly-utilization-bar.is-unreported { display: none; }
+.monthly-bar-column small { min-height: 21px; color: #64748b; font-size: 9px; line-height: 1.2; text-align: center; }
+.monthly-fuel-chart { padding: 7px 10px 14px; }
+.monthly-fuel-chart svg { display: block; width: 100%; overflow: visible; }
+.fuel-gridline { stroke: #e2e8f0; stroke-width: 1; }
+.fuel-axis-label { fill: #64748b; font-size: 9px; text-anchor: end; }
+.fuel-line-segment { fill: none; stroke: #2563eb; stroke-linecap: round; stroke-width: 3; }
+.fuel-line-point { fill: #2563eb; stroke: #fff; stroke-width: 2; }
+.fuel-point-label { fill: #334155; font-size: 9px; font-weight: 600; text-anchor: middle; }
+.fuel-week-labels { display: grid; gap: 2px; margin: -4px 0 0 8%; text-align: center; }
+.fuel-week-labels > span { min-width: 0; display: grid; gap: 2px; color: #64748b; font-size: 8px; line-height: 1.2; }
+.fuel-week-labels strong { color: #475569; font-size: 8px; font-weight: 500; }
+.fuel-week-labels small { font-size: 8px; }
+.trip-status-layout { min-width: 0; min-height: 160px; display: grid; grid-template-columns: minmax(94px, 132px) minmax(0, 1fr); align-items: center; gap: 10px; padding: 8px 16px 18px; }
+.trip-donut { width: 100%; max-width: 132px; height: auto; overflow: visible; }
+.trip-donut-track, .trip-donut-segment { fill: none; stroke-width: 16; }
+.trip-donut-track { stroke: #e2e8f0; }
+.trip-donut-segment { transform: rotate(-90deg); transform-origin: 60px 60px; }
+.trip-donut-total { fill: #0f172a; font-size: 20px; font-weight: 700; text-anchor: middle; }
+.trip-donut-caption { fill: #64748b; font-size: 9px; text-anchor: middle; }
+.trip-status-legend { min-width: 0; display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.trip-status-legend li, .trip-legend-name, .trip-legend-value { min-width: 0; display: flex; align-items: center; }
+.trip-status-legend li { justify-content: space-between; gap: 8px; }
+.trip-legend-name { gap: 7px; }
+.trip-legend-name > i { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; background: var(--status-color); }
+.trip-legend-name > span { min-width: 0; display: grid; gap: 2px; }
+.trip-legend-name strong { color: #334155; font-size: 10px; }
+.trip-legend-name small { color: #64748b; font-size: 8px; line-height: 1.3; }
+.trip-legend-value { flex: 0 0 auto; flex-direction: column; align-items: flex-end; color: #0f172a; font-size: 10px; font-weight: 700; }
+.trip-legend-value small { color: #64748b; font-size: 8px; font-weight: 400; }
+.trip-status-layout .chart-empty { grid-column: 1 / -1; }
+.trip-legend-note { grid-column: 1 / -1; margin: 0; color: #64748b; font-size: 9px; }
+.date-selector small { display: block; color: #64748b; font-size: 9px; }
+.field-help { display: block; color: #64748b; font-size: 10px; line-height: 1.4; }
+
+@media (max-width: 520px) {
+  .section-heading { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .section-heading > span { text-align: left; }
+  .monthly-utilization-chart { gap: 2px; padding-right: 8px; padding-left: 8px; }
+  .monthly-bar-value, .monthly-bar-column small { font-size: 8px; }
+  .fuel-point-label { font-size: 8px; }
+  .fuel-week-labels > span, .fuel-week-labels strong, .fuel-week-labels small { font-size: 7px; }
+  .trip-status-layout { grid-template-columns: minmax(88px, 112px) minmax(0, 1fr); gap: 8px; padding-right: 12px; padding-left: 12px; }
+  .trip-legend-name small { font-size: 7px; }
+}
+
+.date-picker { position: relative; z-index: 5; }
+.date-selector { cursor: pointer; }
+.date-selector:hover, .date-selector:focus-visible { border-color: #bfdbfe; background: #f8fbff; outline: none; }
+.date-picker-popover { position: absolute; top: calc(100% + 8px); right: 0; z-index: 10; width: 310px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; box-shadow: 0 12px 30px #0f172a1f; }
+.date-picker-popover[hidden] { display: none; }
+.date-picker-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.date-picker-presets button, .calendar-header button, .calendar-days button, .calendar-actions button { min-height: 32px; border: 1px solid #e2e8f0; border-radius: 5px; background: #fff; color: #475569; cursor: pointer; }
+.date-picker-presets button { padding: 4px; font-size: 10px; white-space: nowrap; }
+.date-picker-presets button:hover, .calendar-header button:hover, .calendar-days button:hover { border-color: #93c5fd; background: #eff6ff; }
+.calendar-header { display: grid; grid-template-columns: 34px 1fr 34px; align-items: center; gap: 8px; margin: 12px 0 8px; text-align: center; }
+.calendar-header strong { color: #334155; font-size: 13px; }
+.calendar-header button { min-height: 30px; font-size: 18px; line-height: 1; }
+.calendar-weekdays, .calendar-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; text-align: center; }
+.calendar-weekdays { margin-bottom: 4px; color: #94a3b8; font-size: 9px; }
+.calendar-days button { min-width: 0; min-height: 33px; padding: 0; border-color: transparent; font-size: 11px; }
+.calendar-days button.is-in-range { border-radius: 0; background: #eff6ff; color: #1d4ed8; }
+.calendar-days button.is-range-edge { border-color: #1d4ed8; border-radius: 6px; background: #1d4ed8; color: #fff; }
+.calendar-days button:focus-visible, .date-picker-popover button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 1px; }
+.calendar-selection-hint { min-height: 16px; margin: 8px 0 12px; color: #64748b; font-size: 10px; }
+.calendar-actions { display: flex; justify-content: flex-end; gap: 7px; padding-top: 10px; border-top: 1px solid #f1f5f9; }
+.calendar-actions button { min-width: 70px; padding: 0 12px; font-size: 11px; }
+.calendar-actions .calendar-apply { border-color: #1d4ed8; background: #1d4ed8; color: #fff; font-weight: 600; }
+.calendar-actions .calendar-apply:hover { background: #1e40af; }
+.calendar-actions .calendar-apply:disabled { border-color: #cbd5e1; background: #cbd5e1; cursor: not-allowed; }
+
+@media (max-width: 600px) {
+  .date-picker { width: 100%; }
+  .date-selector { width: 100%; justify-content: flex-start; }
+  .date-picker-popover { right: auto; left: 0; width: min(340px, calc(100vw - 92px)); padding: 12px; }
+  .date-picker-presets button { font-size: 9px; }
 }

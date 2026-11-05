@@ -169,12 +169,166 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-const todayLabel = document.querySelector("#today-label");
-if (todayLabel) {
-  todayLabel.textContent = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
+const datePicker = document.querySelector("#date-picker");
+if (datePicker) {
+  const dateSelector = datePicker.querySelector("#date-selector");
+  const popover = datePicker.querySelector("#date-picker-popover");
+  const monthLabel = datePicker.querySelector("#calendar-month-label");
+  const calendarDays = datePicker.querySelector("#calendar-days");
+  const selectionHint = datePicker.querySelector("#calendar-selection-hint");
+  const applyButton = datePicker.querySelector("#calendar-apply");
+  const utcDate = (year, month, day) => new Date(Date.UTC(year, month, day));
+  const dateKey = (date) => [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0")
+  ].join("-");
+  const parseDateKey = (value) => {
+    const [year, month, day] = value.split("-").map(Number);
+    return utcDate(year, month - 1, day);
+  };
+  const formatDate = (value) => new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
-    year: "numeric"
-  }).format(new Date());
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(parseDateKey(value));
+  let appliedStart = dateSelector.dataset.start;
+  let appliedEnd = dateSelector.dataset.end;
+  let draftStart = appliedStart;
+  let draftEnd = appliedEnd;
+  let rangeAnchor = null;
+  let visibleMonth = parseDateKey(appliedStart);
+  visibleMonth = utcDate(visibleMonth.getUTCFullYear(), visibleMonth.getUTCMonth(), 1);
+
+  function renderCalendar() {
+    monthLabel.textContent = new Intl.DateTimeFormat("en-US", {
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC"
+    }).format(visibleMonth);
+    calendarDays.replaceChildren();
+
+    const year = visibleMonth.getUTCFullYear();
+    const month = visibleMonth.getUTCMonth();
+    const firstWeekday = (utcDate(year, month, 1).getUTCDay() + 6) % 7;
+    const daysInMonth = utcDate(year, month + 1, 0).getUTCDate();
+    for (let blank = 0; blank < firstWeekday; blank += 1) {
+      const spacer = document.createElement("span");
+      spacer.setAttribute("aria-hidden", "true");
+      calendarDays.append(spacer);
+    }
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const key = dateKey(utcDate(year, month, day));
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = String(day);
+      button.dataset.date = key;
+      button.setAttribute("aria-label", formatDate(key));
+      button.setAttribute("aria-pressed", String(key === draftStart || key === draftEnd));
+      if (key === draftStart || key === draftEnd) button.classList.add("is-range-edge");
+      if (key > draftStart && key < draftEnd) button.classList.add("is-in-range");
+      button.addEventListener("click", () => {
+        // The first click anchors a draft range; the second completes it.
+        if (rangeAnchor === null) {
+          rangeAnchor = key;
+          draftStart = key;
+          draftEnd = key;
+        } else {
+          draftStart = key < rangeAnchor ? key : rangeAnchor;
+          draftEnd = key < rangeAnchor ? rangeAnchor : key;
+          rangeAnchor = null;
+        }
+        updateSelectionHint();
+        renderCalendar();
+      });
+      calendarDays.append(button);
+    }
+    updateSelectionHint();
+  }
+
+  function updateSelectionHint() {
+    selectionHint.textContent = rangeAnchor
+      ? `Choose an end date. Start: ${formatDate(rangeAnchor)}`
+      : draftStart === draftEnd
+        ? `Selected: ${formatDate(draftStart)}`
+        : `Selected: ${formatDate(draftStart)} – ${formatDate(draftEnd)}`;
+    applyButton.disabled = rangeAnchor !== null;
+  }
+
+  function setDraftRange(start, end) {
+    draftStart = start;
+    draftEnd = end;
+    rangeAnchor = null;
+    visibleMonth = parseDateKey(start);
+    visibleMonth = utcDate(visibleMonth.getUTCFullYear(), visibleMonth.getUTCMonth(), 1);
+    renderCalendar();
+  }
+
+  function closePicker(returnFocus = false) {
+    popover.hidden = true;
+    dateSelector.setAttribute("aria-expanded", "false");
+    rangeAnchor = null;
+    draftStart = appliedStart;
+    draftEnd = appliedEnd;
+    if (returnFocus) dateSelector.focus();
+  }
+
+  dateSelector.addEventListener("click", () => {
+    if (!popover.hidden) {
+      closePicker();
+      return;
+    }
+    draftStart = appliedStart;
+    draftEnd = appliedEnd;
+    rangeAnchor = null;
+    visibleMonth = parseDateKey(appliedStart);
+    visibleMonth = utcDate(visibleMonth.getUTCFullYear(), visibleMonth.getUTCMonth(), 1);
+    renderCalendar();
+    popover.hidden = false;
+    dateSelector.setAttribute("aria-expanded", "true");
+  });
+
+  datePicker.querySelector("#calendar-previous").addEventListener("click", () => {
+    visibleMonth = utcDate(visibleMonth.getUTCFullYear(), visibleMonth.getUTCMonth() - 1, 1);
+    renderCalendar();
+  });
+  datePicker.querySelector("#calendar-next").addEventListener("click", () => {
+    visibleMonth = utcDate(visibleMonth.getUTCFullYear(), visibleMonth.getUTCMonth() + 1, 1);
+    renderCalendar();
+  });
+  datePicker.querySelectorAll("[data-date-preset]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const today = utcDate(
+        new Date().getUTCFullYear(),
+        new Date().getUTCMonth(),
+        new Date().getUTCDate()
+      );
+      const todayKey = dateKey(today);
+      if (button.dataset.datePreset === "today") {
+        setDraftRange(todayKey, todayKey);
+      } else if (button.dataset.datePreset === "last-7-days") {
+        setDraftRange(dateKey(utcDate(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 6)), todayKey);
+      } else {
+        setDraftRange(dateKey(utcDate(today.getUTCFullYear(), today.getUTCMonth(), 1)), todayKey);
+      }
+    });
+  });
+  datePicker.querySelector("#calendar-cancel").addEventListener("click", () => closePicker(true));
+  applyButton.addEventListener("click", () => {
+    if (rangeAnchor !== null || !draftStart || !draftEnd) return;
+    // Applying the selection reloads Overview with validated start/end query parameters.
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "overview");
+    url.searchParams.set("start", draftStart);
+    url.searchParams.set("end", draftEnd);
+    window.location.assign(url);
+  });
+  document.addEventListener("click", (event) => {
+    if (!datePicker.contains(event.target) && !popover.hidden) closePicker();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !popover.hidden) closePicker(true);
+  });
 }

@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS vehicles (
     location TEXT NOT NULL,
     assignment TEXT NOT NULL DEFAULT '',
     last_service TEXT NOT NULL DEFAULT '2026-10-01',
-    fuel_level INTEGER NOT NULL DEFAULT 75 CHECK (fuel_level BETWEEN 0 AND 100)
+    fuel_level INTEGER DEFAULT NULL CHECK (fuel_level IS NULL OR fuel_level BETWEEN 0 AND 100),
+    fuel_level_updated_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS drivers (
@@ -28,7 +29,8 @@ CREATE TABLE IF NOT EXISTS trips (
     destination TEXT NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('active', 'completed', 'upcoming')),
     delay_minutes INTEGER NOT NULL DEFAULT 0 CHECK (delay_minutes >= 0),
-    eta TEXT NOT NULL
+    eta TEXT NOT NULL,
+    trip_date TEXT
 );
 
 CREATE TABLE IF NOT EXISTS alerts (
@@ -72,18 +74,18 @@ CREATE TABLE IF NOT EXISTS issue_reports (
 );
 
 INSERT OR IGNORE INTO vehicles
-    (vehicle_code, make, vehicle_type, status, driver_name, driver_initials, driver_color, location, assignment, last_service, fuel_level)
+    (vehicle_code, make, vehicle_type, status, driver_name, driver_initials, driver_color, location, assignment, last_service, fuel_level, fuel_level_updated_at)
 VALUES
-    ('VH-204', 'Ford Transit', 'Van', 'active', 'Marcus Reed', 'MR', 'orange', 'Portland, OR', 'Salem · Run #2841', date('now', '-18 days'), 82),
-    ('VH-118', 'Freightliner M2', 'Truck', 'active', 'Priya Patel', 'PP', 'purple', 'Vancouver, WA', 'Cold-chain delivery', date('now', '-9 days'), 64),
-    ('VH-167', 'Mercedes Sprinter', 'Van', 'active', 'Alex Chen', 'AC', 'teal', 'Eugene, OR', 'Portland · Run #2836', date('now', '-25 days'), 47),
-    ('VH-092', 'Toyota HiAce', 'Van', 'idle', 'Elena Garcia', 'EG', 'teal', 'Depot 02', '', date('now', '-12 days'), 91),
-    ('VH-056', 'Mercedes Sprinter', 'Van', 'idle', NULL, NULL, 'teal', 'North hub', '', date('now', '-31 days'), 73),
-    ('VH-331', 'Isuzu NPR', 'Truck', 'maintenance', NULL, NULL, 'teal', 'Central depot', 'Brake inspection', date('now', '-72 days'), 28),
-    ('VH-219', 'Ford Transit', 'Van', 'maintenance', NULL, NULL, 'teal', 'Central depot', 'Oil change', date('now', '-58 days'), 36),
-    ('VH-084', 'Toyota HiAce', 'Van', 'idle', NULL, NULL, 'teal', 'North hub', '', date('now', '-14 days'), 68),
-    ('VH-307', 'Freightliner M2', 'Truck', 'idle', NULL, NULL, 'teal', 'East depot', '', date('now', '-21 days'), 55),
-    ('VH-402', 'Isuzu NPR', 'Truck', 'offline', NULL, NULL, 'teal', 'Last seen: Portland, OR', '', date('now', '-45 days'), 19);
+    ('VH-204', 'Ford Transit', 'Van', 'active', 'Marcus Reed', 'MR', 'orange', 'Portland, OR', 'Salem · Run #2841', date('now', '-18 days'), 82, datetime('now')),
+    ('VH-118', 'Freightliner M2', 'Truck', 'active', 'Priya Patel', 'PP', 'purple', 'Vancouver, WA', 'Cold-chain delivery', date('now', '-9 days'), 64, datetime('now')),
+    ('VH-167', 'Mercedes Sprinter', 'Van', 'active', 'Alex Chen', 'AC', 'teal', 'Eugene, OR', 'Portland · Run #2836', date('now', '-25 days'), 47, datetime('now')),
+    ('VH-092', 'Toyota HiAce', 'Van', 'idle', 'Elena Garcia', 'EG', 'teal', 'Depot 02', '', date('now', '-12 days'), 91, datetime('now')),
+    ('VH-056', 'Mercedes Sprinter', 'Van', 'idle', NULL, NULL, 'teal', 'North hub', '', date('now', '-31 days'), 73, datetime('now')),
+    ('VH-331', 'Isuzu NPR', 'Truck', 'maintenance', NULL, NULL, 'teal', 'Central depot', 'Brake inspection', date('now', '-72 days'), 28, datetime('now')),
+    ('VH-219', 'Ford Transit', 'Van', 'maintenance', NULL, NULL, 'teal', 'Central depot', 'Oil change', date('now', '-58 days'), 36, datetime('now')),
+    ('VH-084', 'Toyota HiAce', 'Van', 'idle', NULL, NULL, 'teal', 'North hub', '', date('now', '-14 days'), 68, datetime('now')),
+    ('VH-307', 'Freightliner M2', 'Truck', 'idle', NULL, NULL, 'teal', 'East depot', '', date('now', '-21 days'), 55, datetime('now')),
+    ('VH-402', 'Isuzu NPR', 'Truck', 'offline', NULL, NULL, 'teal', 'Last seen: Portland, OR', '', date('now', '-45 days'), 19, datetime('now'));
 
 INSERT OR IGNORE INTO drivers (id, name, on_duty) VALUES
     (1, 'Marcus Reed', 1),
@@ -93,10 +95,10 @@ INSERT OR IGNORE INTO drivers (id, name, on_duty) VALUES
     (5, 'Sam Wilson', 0),
     (6, 'Taylor Brooks', 0);
 
-INSERT OR IGNORE INTO trips (id, vehicle_code, driver_name, origin, destination, status, delay_minutes, eta) VALUES
-    ('TRIP-2841', 'VH-204', 'Marcus Reed', 'Portland, OR', 'Salem, OR', 'active', 0, '10:45 AM'),
-    ('TRIP-2836', 'VH-167', 'Alex Chen', 'Eugene, OR', 'Portland, OR', 'active', 18, '11:20 AM'),
-    ('TRIP-2832', 'VH-118', 'Priya Patel', 'Hillsboro, OR', 'Vancouver, WA', 'active', 0, '11:05 AM');
+INSERT OR IGNORE INTO trips (id, vehicle_code, driver_name, origin, destination, status, delay_minutes, eta, trip_date) VALUES
+    ('TRIP-2841', 'VH-204', 'Marcus Reed', 'Portland, OR', 'Salem, OR', 'active', 0, '10:45 AM', date('now')),
+    ('TRIP-2836', 'VH-167', 'Alex Chen', 'Eugene, OR', 'Portland, OR', 'active', 18, '11:20 AM', date('now')),
+    ('TRIP-2832', 'VH-118', 'Priya Patel', 'Hillsboro, OR', 'Vancouver, WA', 'active', 0, '11:05 AM', date('now'));
 
 INSERT OR IGNORE INTO alerts (id, title, detail, severity, time_label, is_open) VALUES
     (1, 'Vehicle offline', 'VH-402 · Last seen 24 min ago', 'urgent', '9:32 AM', 1),

@@ -26,8 +26,31 @@ creates `fleet.sqlite` and loads the sample data from `schema.sql`.
   Drivers, Maintenance, Reports, and Settings workspaces.
 - Overview is read-only. Search and edit vehicle, trip, driver duty, and
   maintenance records in their respective workspaces; changes are saved to SQLite.
-- Review utilization, trip-completion, fuel, and maintenance-by-department reports.
+- Review monthly utilization and fuel trends by Monday–Sunday week, alongside
+  weekly trip-status distribution and maintenance due by department. Reporting uses UTC.
+- On Overview, use the date selector to filter weekly performance charts and
+  recent activity by a custom range, Today, Last 7 days, or This month. Missing
+  daily metrics are clearly identified as sample data; current KPI cards remain
+  fleet snapshots.
 - Submit operational issue reports from the Maintenance workspace; reports are saved to SQLite.
+
+## Database update
+
+When an existing `fleet.sqlite` is first opened after this update, `database.php`
+applies compatible, data-preserving SQLite migrations automatically. Back up
+`fleet.sqlite` before deploying the update. The migration makes vehicle
+`fuel_level` nullable, adds its update timestamp, and adds a `trip_date` field.
+Existing non-null fuel values are retained; their update time remains unknown
+until the next save. Existing active trips are dated to the migration day
+because they are known to be in progress; completed and upcoming legacy trips
+remain undated rather than being assigned fabricated dates. Assign their actual
+trip dates in Trips & Assignments to include them in weekly reports.
+
+Blank fuel levels save as SQL `NULL` and display as “Not reported.” Fuel
+consumption is calculated separately by summing reported daily liters for the
+week. Weekly utilization averages the available daily records, and trip
+completion is completed trips divided by dated started trips; upcoming trips
+are excluded from that rate. The daily metric records remain unchanged.
 
 The manager workspace contains operational information only. It does not expose
 accounting totals, payroll or employee records, head-admin user management, or

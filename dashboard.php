@@ -15,14 +15,93 @@ $openAlerts = count($alerts);
 $urgentAlerts = count(array_filter($alerts, static fn ($alert) => $alert['severity'] === 'urgent'));
 $activeTrips = count($trips);
 $maintenanceDue = count(array_filter($maintenanceItems, static fn ($item) => $item['state'] === 'due soon'));
-$dateLabel = date('D, M j, Y');
+$tripStatusLabels = [
+    'completed' => ['label' => 'Completed', 'description' => 'Trip completed', 'color' => '#16a34a'],
+    'in_progress' => ['label' => 'In progress', 'description' => 'Active without a reported delay', 'color' => '#2563eb'],
+    'delayed' => ['label' => 'Delayed', 'description' => 'Active with a reported delay', 'color' => '#f59e0b'],
+    'upcoming' => ['label' => 'Upcoming', 'description' => 'Not yet in progress', 'color' => '#94a3b8'],
+];
+$tripDonutCircumference = 2 * M_PI * 40;
+$tripDonutOffset = 0;
+$tripDonutSegments = [];
+foreach ($tripStatusLabels as $status => $metadata) {
+    $count = $weeklyTripCounts[$status];
+    if ($weeklyTrips !== [] && $count > 0) {
+        $length = $count / count($weeklyTrips) * $tripDonutCircumference;
+        $tripDonutSegments[] = [
+            'color' => $metadata['color'],
+            'dasharray' => number_format($length, 2, '.', '') . ' ' . number_format($tripDonutCircumference - $length, 2, '.', ''),
+            'dashoffset' => number_format(-$tripDonutOffset, 2, '.', ''),
+        ];
+        $tripDonutOffset += $length;
+    }
+}
+$fuelChartPoints = [];
+$fuelChartSegments = [];
+$fuelChartMaximum = max(1, ...array_column(array_values($monthlyWeeks), 'fuel_liters'));
+$monthlyWeekCount = count($monthlyWeeks);
+$previousFuelPoint = null;
+foreach (array_values($monthlyWeeks) as $index => $week) {
+    $x = $monthlyWeekCount > 1 ? 70 + $index * 400 / ($monthlyWeekCount - 1) : 270;
+    $value = $week['fuel_liters'];
+    $point = [
+        'x' => $x,
+        'y' => $value === null ? null : 138 - $value / $fuelChartMaximum * 105,
+        'value' => $value,
+        'label' => $week['label'],
+    ];
+    if ($point['y'] !== null && $previousFuelPoint !== null) {
+        $fuelChartSegments[] = 'M ' . number_format($previousFuelPoint['x'], 1, '.', '')
+            . ' ' . number_format($previousFuelPoint['y'], 1, '.', '')
+            . ' L ' . number_format($point['x'], 1, '.', '')
+            . ' ' . number_format($point['y'], 1, '.', '');
+    }
+    $fuelChartPoints[] = $point;
+    $previousFuelPoint = $point['y'] === null ? null : $point;
+}
+$overviewFuelChartMaximum = max(1, ...array_column(array_values($overviewWeeks), 'fuel_liters'));
+$overviewFuelChartPoints = [];
+$overviewFuelChartSegments = [];
+$previousOverviewFuelPoint = null;
+foreach (array_values($overviewWeeks) as $index => $week) {
+    $x = count($overviewWeeks) > 1 ? 70 + $index * 400 / (count($overviewWeeks) - 1) : 270;
+    $point = [
+        'x' => $x,
+        'y' => 138 - $week['fuel_liters'] / $overviewFuelChartMaximum * 105,
+        'value' => $week['fuel_liters'],
+        'label' => $week['label'],
+    ];
+    if ($previousOverviewFuelPoint !== null) {
+        $overviewFuelChartSegments[] = 'M ' . number_format($previousOverviewFuelPoint['x'], 1, '.', '')
+            . ' ' . number_format($previousOverviewFuelPoint['y'], 1, '.', '')
+            . ' L ' . number_format($point['x'], 1, '.', '')
+            . ' ' . number_format($point['y'], 1, '.', '');
+    }
+    $overviewFuelChartPoints[] = $point;
+    $previousOverviewFuelPoint = $point;
+}
+$overviewTripDonutCircumference = 2 * M_PI * 40;
+$overviewTripDonutOffset = 0;
+$overviewTripDonutSegments = [];
+foreach ($tripStatusLabels as $status => $metadata) {
+    $count = $rangeTripCounts[$status];
+    if ($rangeTrips !== [] && $count > 0) {
+        $length = $count / count($rangeTrips) * $overviewTripDonutCircumference;
+        $overviewTripDonutSegments[] = [
+            'color' => $metadata['color'],
+            'dasharray' => number_format($length, 2, '.', '') . ' ' . number_format($overviewTripDonutCircumference - $length, 2, '.', ''),
+            'dashoffset' => number_format(-$overviewTripDonutOffset, 2, '.', ''),
+        ];
+        $overviewTripDonutOffset += $length;
+    }
+}
 $views = [
-    'overview' => ['title' => 'Manager dashboard', 'description' => 'Operational fleet, trip, driver, and maintenance performance.'],
+    'overview' => ['title' => 'Dashboard', 'description' => 'Operational fleet, trip, driver, and maintenance performance.'],
     'fleet' => ['title' => 'Fleet status', 'description' => 'Review and update vehicle details, availability, and assignments.'],
     'trips' => ['title' => 'Trips & assignments', 'description' => 'Review routes and update trip status, driver, and timing.'],
     'drivers' => ['title' => 'Drivers', 'description' => 'Review driver availability and update duty status.'],
     'maintenance' => ['title' => 'Maintenance', 'description' => 'Update scheduled work and submit operational issues.'],
-    'reports' => ['title' => 'Reports', 'description' => 'Review fleet utilization, trip completion, and fuel trends.'],
+    'reports' => ['title' => 'Reports', 'description' => 'Review weekly utilization, trip status, fuel consumption, and maintenance.'],
     'settings' => ['title' => 'Settings', 'description' => 'Workspace details and available manager settings.'],
 ];
 ?>
@@ -32,7 +111,7 @@ $views = [
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#dbeafe">
-    <title>Manager dashboard | Fleet Management</title>
+    <title><?= h($views[$activeView]['title']) ?> | Fleet Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
   </head>
@@ -95,12 +174,37 @@ $views = [
           <section class="page-heading">
             <div>
               <div class="eyebrow"><span class="live-pulse"></span> MANAGER WORKSPACE</div>
-              <h1><?= h($views[$activeView]['title']) ?><?= $activeView === 'overview' ? ' <span class="wave">✳</span>' : '' ?></h1>
+              <h1><?= h($views[$activeView]['title']) ?></h1>
               <p><?= h($views[$activeView]['description']) ?></p>
             </div>
             <div class="heading-actions">
               <?php if ($activeView === 'overview'): ?>
-              <div class="date-selector"><span>▦</span><span id="today-label"><?= h($dateLabel) ?></span><span class="chevron">⌄</span></div>
+              <div class="date-picker" id="date-picker">
+                <button class="date-selector" id="date-selector" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="date-picker-popover" data-start="<?= h($selectedStartDate) ?>" data-end="<?= h($selectedEndDate) ?>">
+                  <span aria-hidden="true">▦</span><span id="selected-date-label"><?= h($selectedRangeLabel) ?></span><span class="chevron" aria-hidden="true">⌄</span>
+                </button>
+                <div class="date-picker-popover" id="date-picker-popover" role="dialog" aria-label="Select dashboard date range" hidden>
+                  <div class="date-picker-presets" aria-label="Quick date ranges">
+                    <button type="button" data-date-preset="today">Today</button>
+                    <button type="button" data-date-preset="last-7-days">Last 7 days</button>
+                    <button type="button" data-date-preset="this-month">This month</button>
+                  </div>
+                  <div class="calendar-header">
+                    <button type="button" id="calendar-previous" aria-label="Previous month">‹</button>
+                    <strong id="calendar-month-label"></strong>
+                    <button type="button" id="calendar-next" aria-label="Next month">›</button>
+                  </div>
+                  <div class="calendar-weekdays" aria-hidden="true">
+                    <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+                  </div>
+                  <div class="calendar-days" id="calendar-days" role="group" aria-label="Calendar dates"></div>
+                  <p class="calendar-selection-hint" id="calendar-selection-hint" aria-live="polite">Select a start date, then an end date.</p>
+                  <div class="calendar-actions">
+                    <button class="calendar-cancel" id="calendar-cancel" type="button">Cancel</button>
+                    <button class="calendar-apply" id="calendar-apply" type="button">Apply</button>
+                  </div>
+                </div>
+              </div>
               <?php elseif ($activeView === 'maintenance'): ?>
               <button class="button button-primary bg-blue-700 text-white" id="report-issue"><span>＋</span> Report an issue</button>
               <?php endif; ?>
@@ -108,26 +212,29 @@ $views = [
           </section>
 
           <?php if ($activeView === 'overview'): ?>
-          <section class="metrics-grid manager-metrics" aria-label="Fleet summary">
+          <section class="current-snapshot" aria-label="Current fleet snapshot">
+            <div class="section-heading"><h2>Current fleet snapshot</h2><span>As of <?= h(gmdate('M j, Y g:i A')) ?> UTC</span></div>
+            <div class="metrics-grid manager-metrics">
             <div class="metric-card bg-white">
               <span class="metric-top"><span class="metric-label">Active Vehicles</span><span class="metric-icon icon-green">↗</span></span>
               <span class="metric-value"><?= h($vehicleCounts['active']) ?></span>
-              <span class="metric-foot"><span class="status-dot dot-green"></span><span>Currently on the road</span></span>
+              <span class="metric-foot"><span class="status-dot dot-green"></span><span>Current live status</span></span>
             </div>
             <div class="metric-card bg-white">
               <span class="metric-top"><span class="metric-label">Available Vehicles</span><span class="metric-icon icon-violet">◷</span></span>
               <span class="metric-value"><?= h($vehicleCounts['idle']) ?></span>
-              <span class="metric-foot"><span class="status-dot dot-violet"></span><span>Ready for assignment</span></span>
+              <span class="metric-foot"><span class="status-dot dot-violet"></span><span>Current live status</span></span>
             </div>
             <div class="metric-card bg-white">
-              <span class="metric-top"><span class="metric-label">In-Transit Vehicles</span><span class="metric-icon icon-blue">⇢</span></span>
+              <span class="metric-top"><span class="metric-label">Active Trips</span><span class="metric-icon icon-blue">⇢</span></span>
               <span class="metric-value"><?= h($activeTrips) ?></span>
-              <span class="metric-foot"><span class="status-dot dot-green"></span><span>Vehicles on active trips</span></span>
+              <span class="metric-foot"><span class="status-dot dot-green"></span><span>Current live status</span></span>
             </div>
             <div class="metric-card bg-white">
-              <span class="metric-top"><span class="metric-label">Pending Maintenance</span><span class="metric-icon icon-amber">⚙</span></span>
+              <span class="metric-top"><span class="metric-label">Open Maintenance</span><span class="metric-icon icon-amber">⚙</span></span>
               <span class="metric-value"><?= h($pendingMaintenance) ?></span>
-              <span class="metric-foot"><span class="trend-warn"><?= h($maintenanceDue) ?> due soon</span><span> · needs attention</span></span>
+              <span class="metric-foot"><span class="trend-warn"><?= h($maintenanceDue) ?> due soon</span><span> · current snapshot</span></span>
+            </div>
             </div>
           </section>
 
@@ -161,56 +268,88 @@ $views = [
 
             <article class="panel activity-panel bg-white">
               <div class="panel-heading">
-                <div><h2>Recent activity</h2><p>Latest operational updates</p></div>
+                <div><h2>Recent activity</h2><p>Updates from <?= h($selectedRangeLabel) ?> UTC</p></div>
                 <span class="count-pill"><?= h(count($recentActivity)) ?> updates</span>
               </div>
               <div class="activity-list">
                 <?php foreach ($recentActivity as $activity): ?>
                 <div class="activity-item">
                   <span class="activity-marker activity-<?= h($activity['category']) ?>"></span>
-                  <span class="activity-copy"><strong><?= h($activity['message']) ?></strong><small><?= h(date('M j, g:i A', strtotime($activity['occurred_at']))) ?></small></span>
+                  <span class="activity-copy"><strong><?= h($activity['message']) ?></strong><small><?= h((new DateTimeImmutable($activity['occurred_at'], $utc))->format('M j, g:i A')) ?> UTC</small></span>
                 </div>
                 <?php endforeach; ?>
               </div>
             </article>
           </section>
 
-          <section class="performance-grid" id="reports" aria-label="Fleet performance charts">
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Daily vehicle utilization</h2><p>Vehicles in use each day</p></div><span class="chart-unit">%</span></div>
-              <div class="bar-chart" role="img" aria-label="Daily utilization percentages">
-                <?php foreach ($dailyMetrics as $metric): ?>
-                <div class="bar-column"><span class="bar-value"><?= h($metric['utilization']) ?>%</span><i class="chart-bar utilization-bar" style="--bar-height: <?= h($metric['utilization']) ?>%"></i><small><?= h(date('D', strtotime($metric['metric_date']))) ?></small></div>
-                <?php endforeach; ?>
-              </div>
-            </article>
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Trip completion rate</h2><p>Completed trips per day</p></div><span class="chart-unit">%</span></div>
-              <div class="bar-chart" role="img" aria-label="Daily trip completion rates">
-                <?php foreach ($dailyMetrics as $metric): ?>
-                <div class="bar-column"><span class="bar-value"><?= h($metric['completion_rate']) ?>%</span><i class="chart-bar completion-bar" style="--bar-height: <?= h($metric['completion_rate']) ?>%"></i><small><?= h(date('D', strtotime($metric['metric_date']))) ?></small></div>
-                <?php endforeach; ?>
-              </div>
-            </article>
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Maintenance issues by department</h2><p>Open scheduled work</p></div><span class="chart-unit">items</span></div>
-              <div class="department-chart">
-                <?php $maxDepartmentIssues = max(1, ...array_column($maintenanceByDepartment, 'issue_count')); ?>
-                <?php foreach ($maintenanceByDepartment as $department): ?>
-                <div class="department-row"><div><span><?= h($department['department']) ?></span><strong><?= h($department['issue_count']) ?></strong></div><i style="--bar-width: <?= h((int) round($department['issue_count'] / $maxDepartmentIssues * 100)) ?>%"></i></div>
-                <?php endforeach; ?>
-                <?php if ($maintenanceByDepartment === []): ?><p class="chart-empty">No open maintenance issues.</p><?php endif; ?>
-              </div>
-            </article>
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Fuel consumption trend</h2><p>Fleet usage by day</p></div><span class="chart-unit">L</span></div>
-              <div class="bar-chart" role="img" aria-label="Daily fuel consumption in liters">
-                <?php $maxFuel = max(1, ...array_column($dailyMetrics, 'fuel_liters')); ?>
-                <?php foreach ($dailyMetrics as $metric): ?>
-                <div class="bar-column"><span class="bar-value"><?= h($metric['fuel_liters']) ?></span><i class="chart-bar fuel-bar" style="--bar-height: <?= h((int) round($metric['fuel_liters'] / $maxFuel * 100)) ?>%"></i><small><?= h(date('D', strtotime($metric['metric_date']))) ?></small></div>
-                <?php endforeach; ?>
-              </div>
-            </article>
+          <section class="performance-section" id="reports" aria-label="Fleet performance for selected date range">
+            <div class="section-heading"><h2>Fleet performance</h2><span><?= h($selectedRangeLabel) ?> · weeks start Monday · UTC</span></div>
+            <div class="performance-grid">
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Average vehicle utilization</h2><p><?= $overviewMetricsIncludeSample ? 'Sample data included for dates without reported metrics' : 'Average of reported daily utilization' ?></p></div><span class="chart-unit">%</span></div>
+                <div class="monthly-utilization-chart" role="img" aria-label="Average vehicle utilization by week for <?= h($selectedRangeLabel) ?>">
+                  <?php foreach (array_values($overviewWeeks) as $week): ?>
+                  <div class="monthly-bar-column">
+                    <span class="monthly-bar-value"><?= $week['utilization'] === null ? 'Not reported' : h($week['utilization']) . '%' ?></span>
+                    <i class="monthly-utilization-bar<?= $week['utilization'] === null ? ' is-unreported' : '' ?>" style="--bar-height: <?= $week['utilization'] === null ? '0px' : h(number_format($week['utilization'] * 1.05, 1, '.', '')) . 'px' ?>"></i>
+                    <small><?= h($week['label']) ?></small>
+                  </div>
+                  <?php endforeach; ?>
+                </div>
+              </article>
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Trip status</h2><p><?= h($selectedRangeLabel) ?> UTC · Completion rate: <?= $rangeTripCompletionRate === null ? 'Not available' : h($rangeTripCompletionRate) . '%' ?></p></div><span class="chart-unit">trips</span></div>
+                <div class="trip-status-layout">
+                  <?php if ($rangeTrips !== []): ?>
+                  <svg class="trip-donut" viewBox="0 0 120 120" role="img" aria-label="Trip status distribution for <?= h($selectedRangeLabel) ?>">
+                    <circle class="trip-donut-track" cx="60" cy="60" r="40"></circle>
+                    <?php foreach ($overviewTripDonutSegments as $segment): ?><circle class="trip-donut-segment" cx="60" cy="60" r="40" stroke="<?= h($segment['color']) ?>" stroke-dasharray="<?= h($segment['dasharray']) ?>" stroke-dashoffset="<?= h($segment['dashoffset']) ?>"></circle><?php endforeach; ?>
+                    <text class="trip-donut-total" x="60" y="57"><?= h(count($rangeTrips)) ?></text><text class="trip-donut-caption" x="60" y="72">trips</text>
+                  </svg>
+                  <ul class="trip-status-legend">
+                    <?php foreach ($tripStatusLabels as $status => $metadata): $statusCount = $rangeTripCounts[$status]; ?>
+                    <li><span class="trip-legend-name"><i style="--status-color: <?= h($metadata['color']) ?>"></i><span><strong><?= h($metadata['label']) ?></strong><small><?= h($metadata['description']) ?></small></span></span><span class="trip-legend-value"><?= h(number_format($statusCount / count($rangeTrips) * 100, 1)) ?>%<small><?= h($statusCount) ?> trips</small></span></li>
+                    <?php endforeach; ?>
+                  </ul>
+                  <?php if ($undatedTripCount > 0): ?><p class="trip-legend-note"><?= h($undatedTripCount) ?> undated trips excluded.</p><?php endif; ?>
+                  <?php else: ?>
+                  <p class="chart-empty">No dated trips are available for this range. <?= $undatedTripCount > 0 ? h($undatedTripCount) . ' undated trips are excluded.' : 'No trip dates were reported.' ?></p>
+                  <?php endif; ?>
+                </div>
+              </article>
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Maintenance by department</h2><p>Uncompleted work due <?= h($selectedRangeLabel) ?> UTC</p></div><span class="chart-unit">items</span></div>
+                <div class="department-chart">
+                  <?php $maxDepartmentIssues = max(1, ...array_column($rangeMaintenanceByDepartment, 'issue_count')); ?>
+                  <?php foreach ($rangeMaintenanceByDepartment as $department): ?>
+                  <div class="department-row"><div><span><?= h($department['department']) ?></span><strong><?= h($department['issue_count']) ?></strong></div><i style="--bar-width: <?= h((int) round($department['issue_count'] / $maxDepartmentIssues * 100)) ?>%"></i></div>
+                  <?php endforeach; ?>
+                  <?php if ($rangeMaintenanceByDepartment === []): ?><p class="chart-empty">No uncompleted maintenance due in this range.</p><?php endif; ?>
+                </div>
+              </article>
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Fuel consumption by week</h2><p><?= $overviewMetricsIncludeSample ? 'Sample data included for dates without reported metrics' : 'Total fuel consumed each week' ?></p></div><span class="chart-unit">L</span></div>
+                <div class="monthly-fuel-chart">
+                  <svg viewBox="0 0 500 170" role="img" aria-label="Fuel consumption in liters by week for <?= h($selectedRangeLabel) ?>">
+                    <line class="fuel-gridline" x1="42" y1="33" x2="485" y2="33"></line>
+                    <line class="fuel-gridline" x1="42" y1="85" x2="485" y2="85"></line>
+                    <line class="fuel-gridline" x1="42" y1="138" x2="485" y2="138"></line>
+                    <text class="fuel-axis-label" x="36" y="29"><?= h(number_format($overviewFuelChartMaximum)) ?></text>
+                    <text class="fuel-axis-label" x="36" y="134">0</text>
+                    <?php foreach ($overviewFuelChartSegments as $segment): ?><path class="fuel-line-segment" d="<?= h($segment) ?>"></path><?php endforeach; ?>
+                    <?php foreach ($overviewFuelChartPoints as $point): ?>
+                    <?php if ($point['value'] !== null): ?>
+                    <circle class="fuel-line-point" cx="<?= h(number_format($point['x'], 1, '.', '')) ?>" cy="<?= h(number_format($point['y'], 1, '.', '')) ?>" r="4"><title><?= h($point['label']) ?>: <?= h(number_format($point['value'])) ?> L</title></circle>
+                    <text class="fuel-point-label" x="<?= h(number_format($point['x'], 1, '.', '')) ?>" y="<?= h(number_format($point['y'] - 9, 1, '.', '')) ?>"><?= h(number_format($point['value'])) ?></text>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
+                  </svg>
+                  <div class="fuel-week-labels" style="grid-template-columns: repeat(<?= h(count($overviewFuelChartPoints)) ?>, minmax(0, 1fr))">
+                    <?php foreach ($overviewFuelChartPoints as $point): ?><span><strong><?= h($point['label']) ?></strong><small><?= $point['value'] === null ? 'Not reported' : h(number_format($point['value'])) . ' L' ?></small></span><?php endforeach; ?>
+                  </div>
+                </div>
+              </article>
+            </div>
           </section>
 
           <section class="content-grid" hidden>
@@ -243,13 +382,20 @@ $views = [
                     $driverMarkup = $vehicle['driver_name'] !== null
                         ? '<span class="driver-cell"><span class="mini-avatar avatar-' . h($vehicle['driver_color']) . '">' . h($vehicle['driver_initials']) . '</span>' . h($vehicle['driver_name']) . '</span>'
                         : '<span class="assignment-muted">—</span>';
+                    $fuelLevelLabel = $vehicle['fuel_level'] === null
+                        ? 'Not reported'
+                        : h($vehicle['fuel_level']) . '%';
+                    $fuelUpdatedLabel = $vehicle['fuel_level_updated_at'] !== null
+                        ? gmdate('M j, Y g:i A', strtotime($vehicle['fuel_level_updated_at'])) . ' UTC'
+                        : 'Update time not recorded';
                     $detail = implode('|', [
                         $vehicle['vehicle_code'] . ' · ' . $vehicle['make'] . ' ' . $vehicle['vehicle_type'],
                         $statusLabel . ($vehicle['driver_name'] ? ' with ' . $vehicle['driver_name'] : ''),
                         'Current location: ' . $vehicle['location'],
                         'Assignment: ' . ($vehicle['assignment'] ?: 'Unassigned'),
                         'Last service: ' . date('M j, Y', strtotime($vehicle['last_service'])),
-                        'Fuel level: ' . $vehicle['fuel_level'] . '%',
+                        'Fuel level: ' . ($vehicle['fuel_level'] === null ? 'Not reported' : $vehicle['fuel_level'] . '%'),
+                        'Fuel level last updated: ' . $fuelUpdatedLabel,
                     ]);
                     $search = strtolower(implode(' ', array_filter($vehicle)));
                     ?>
@@ -259,7 +405,7 @@ $views = [
                       <td><?= $driverMarkup ?></td>
                       <td><span class="location-cell"><i></i><?= h($vehicle['assignment'] !== '' ? $vehicle['assignment'] : $vehicle['location']) ?></span><span class="vehicle-type"><?= h($vehicle['location']) ?></span></td>
                       <td><?= h(date('M j, Y', strtotime($vehicle['last_service']))) ?></td>
-                      <td><span class="fuel-level <?= $vehicle['fuel_level'] < 30 ? 'fuel-low' : '' ?>"><?= h($vehicle['fuel_level']) ?>%</span></td>
+                      <td><span class="fuel-level <?= $vehicle['fuel_level'] !== null && $vehicle['fuel_level'] < 30 ? 'fuel-low' : '' ?>"><?= $fuelLevelLabel ?></span><span class="vehicle-type"><?= h($fuelUpdatedLabel) ?></span></td>
                       <td><?= h($vehicle['eta'] ?: '—') ?></td>
                       <td><span class="delivery-status <?= $vehicle['eta'] === null ? 'delivery-neutral' : ((int) $vehicle['delay_minutes'] > 0 ? 'delivery-late' : 'delivery-on-time') ?>"><?= $vehicle['eta'] === null ? '—' : ((int) $vehicle['delay_minutes'] > 0 ? 'Delayed' : 'On time') ?></span></td>
                       <td><button class="row-more" type="button" data-detail="<?= h($detail) ?>">···<span class="sr-only">View <?= h($vehicle['vehicle_code']) ?> details</span></button></td>
@@ -396,7 +542,7 @@ $views = [
                 <label>Location<input name="location" maxlength="120" required value="<?= h($vehicle['location']) ?>"></label>
                 <label>Assignment<input name="assignment" maxlength="120" value="<?= h($vehicle['assignment']) ?>"></label>
                 <label>Last service<input name="last_service" type="date" required value="<?= h($vehicle['last_service']) ?>"></label>
-                <label>Fuel level (%)<input name="fuel_level" type="number" min="0" max="100" required value="<?= h($vehicle['fuel_level']) ?>"></label>
+                <label>Fuel level (%)<input name="fuel_level" type="number" min="0" max="100" placeholder="Not reported" value="<?= h($vehicle['fuel_level'] ?? '') ?>"><small class="field-help">Last updated: <?= $vehicle['fuel_level_updated_at'] !== null ? h(gmdate('M j, Y g:i A', strtotime($vehicle['fuel_level_updated_at'])) . ' UTC') : 'Update time not recorded' ?></small></label>
                 <button class="button button-primary bg-blue-700 text-white" type="submit">Save vehicle</button>
               </form>
             </article>
@@ -415,6 +561,7 @@ $views = [
                 <label>Origin<input name="origin" maxlength="120" required value="<?= h($trip['origin']) ?>"></label>
                 <label>Destination<input name="destination" maxlength="120" required value="<?= h($trip['destination']) ?>"></label>
                 <label>Status<select name="status"><?php foreach (['active', 'upcoming', 'completed'] as $status): ?><option value="<?= h($status) ?>" <?= $trip['status'] === $status ? 'selected' : '' ?>><?= h(ucfirst($status)) ?></option><?php endforeach; ?></select></label>
+                <label>Trip date<input name="trip_date" type="date" value="<?= h($trip['trip_date'] ?? '') ?>"><small class="field-help">Leave blank if the date is unknown; undated trips are excluded from weekly reports.</small></label>
                 <label>Delay (minutes)<input name="delay_minutes" type="number" min="0" required value="<?= h($trip['delay_minutes']) ?>"></label>
                 <label>ETA<input name="eta" maxlength="30" required value="<?= h($trip['eta']) ?>"></label>
                 <button class="button button-primary bg-blue-700 text-white" type="submit">Save trip</button>
@@ -457,34 +604,72 @@ $views = [
             <?php endforeach; ?>
           </section>
           <?php elseif ($activeView === 'reports'): ?>
-          <section class="performance-grid" aria-label="Fleet performance reports">
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Daily vehicle utilization</h2><p>Vehicles in use each day</p></div><span class="chart-unit">%</span></div>
-              <div class="bar-chart" role="img" aria-label="Daily utilization percentages">
-                <?php foreach ($dailyMetrics as $metric): ?><div class="bar-column"><span class="bar-value"><?= h($metric['utilization']) ?>%</span><i class="chart-bar utilization-bar" style="--bar-height: <?= h($metric['utilization']) ?>%"></i><small><?= h(date('D', strtotime($metric['metric_date']))) ?></small></div><?php endforeach; ?>
-              </div>
-            </article>
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Trip completion rate</h2><p>Completed trips per day</p></div><span class="chart-unit">%</span></div>
-              <div class="bar-chart" role="img" aria-label="Daily trip completion rates">
-                <?php foreach ($dailyMetrics as $metric): ?><div class="bar-column"><span class="bar-value"><?= h($metric['completion_rate']) ?>%</span><i class="chart-bar completion-bar" style="--bar-height: <?= h($metric['completion_rate']) ?>%"></i><small><?= h(date('D', strtotime($metric['metric_date']))) ?></small></div><?php endforeach; ?>
-              </div>
-            </article>
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Maintenance by department</h2><p>Open scheduled work</p></div><span class="chart-unit">items</span></div>
-              <div class="department-chart">
-                <?php $maxDepartmentIssues = max(1, ...array_column($maintenanceByDepartment, 'issue_count')); ?>
-                <?php foreach ($maintenanceByDepartment as $department): ?><div class="department-row"><div><span><?= h($department['department']) ?></span><strong><?= h($department['issue_count']) ?></strong></div><i style="--bar-width: <?= h((int) round($department['issue_count'] / $maxDepartmentIssues * 100)) ?>%"></i></div><?php endforeach; ?>
-                <?php if ($maintenanceByDepartment === []): ?><p class="chart-empty">No open maintenance issues.</p><?php endif; ?>
-              </div>
-            </article>
-            <article class="panel chart-panel bg-white">
-              <div class="panel-heading"><div><h2>Fuel consumption</h2><p>Fleet usage by day</p></div><span class="chart-unit">L</span></div>
-              <div class="bar-chart" role="img" aria-label="Daily fuel consumption in liters">
-                <?php $maxFuel = max(1, ...array_column($dailyMetrics, 'fuel_liters')); ?>
-                <?php foreach ($dailyMetrics as $metric): ?><div class="bar-column"><span class="bar-value"><?= h($metric['fuel_liters']) ?></span><i class="chart-bar fuel-bar" style="--bar-height: <?= h((int) round($metric['fuel_liters'] / $maxFuel * 100)) ?>%"></i><small><?= h(date('D', strtotime($metric['metric_date']))) ?></small></div><?php endforeach; ?>
-              </div>
-            </article>
+          <section class="performance-section" aria-label="Fleet performance reports">
+            <div class="section-heading"><h2>Monthly performance</h2><span><?= h($monthLabel) ?> · weeks start Monday · UTC</span></div>
+            <div class="performance-grid">
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Average vehicle utilization</h2><p><?= $monthlyMetricsIncludeSample ? 'Sample data · missing weeks are illustrative' : 'Sample data · average of reported daily utilization' ?></p></div><span class="chart-unit">%</span></div>
+                <div class="monthly-utilization-chart" role="img" aria-label="Average vehicle utilization by week for <?= h($monthLabel) ?>, sample data">
+                  <?php foreach (array_values($monthlyWeeks) as $week): ?>
+                  <div class="monthly-bar-column">
+                    <span class="monthly-bar-value"><?= $week['utilization'] === null ? 'Not reported' : h($week['utilization']) . '%' ?></span>
+                    <i class="monthly-utilization-bar<?= $week['utilization'] === null ? ' is-unreported' : '' ?>" style="--bar-height: <?= $week['utilization'] === null ? '0px' : h(number_format($week['utilization'] * 1.05, 1, '.', '')) . 'px' ?>"></i>
+                    <small><?= h($week['label']) ?></small>
+                  </div>
+                  <?php endforeach; ?>
+                </div>
+              </article>
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Weekly trip status</h2><p><?= h($weekRangeLabel) ?> UTC · Completion rate: <?= $weeklyTripCompletionRate === null ? 'Not available' : h($weeklyTripCompletionRate) . '%' ?></p></div><span class="chart-unit">trips</span></div>
+                <div class="trip-status-layout">
+                  <?php if ($weeklyTrips !== []): ?>
+                  <svg class="trip-donut" viewBox="0 0 120 120" role="img" aria-label="Weekly distribution of <?= h(count($weeklyTrips)) ?> dated trips by status">
+                    <circle class="trip-donut-track" cx="60" cy="60" r="40"></circle>
+                    <?php foreach ($tripDonutSegments as $segment): ?><circle class="trip-donut-segment" cx="60" cy="60" r="40" stroke="<?= h($segment['color']) ?>" stroke-dasharray="<?= h($segment['dasharray']) ?>" stroke-dashoffset="<?= h($segment['dashoffset']) ?>"></circle><?php endforeach; ?>
+                    <text class="trip-donut-total" x="60" y="57"><?= h(count($weeklyTrips)) ?></text><text class="trip-donut-caption" x="60" y="72">trips</text>
+                  </svg>
+                  <ul class="trip-status-legend">
+                    <?php foreach ($tripStatusLabels as $status => $metadata): $statusCount = $weeklyTripCounts[$status]; ?>
+                    <li><span class="trip-legend-name"><i style="--status-color: <?= h($metadata['color']) ?>"></i><span><strong><?= h($metadata['label']) ?></strong><small><?= h($metadata['description']) ?></small></span></span><span class="trip-legend-value"><?= h(number_format($statusCount / count($weeklyTrips) * 100, 1)) ?>%<small><?= h($statusCount) ?> trips</small></span></li>
+                    <?php endforeach; ?>
+                  </ul>
+                  <?php if ($undatedTripCount > 0): ?><p class="trip-legend-note"><?= h($undatedTripCount) ?> undated trips excluded.</p><?php endif; ?>
+                  <?php else: ?>
+                  <p class="chart-empty">No dated trips are available for this week. <?= $undatedTripCount > 0 ? h($undatedTripCount) . ' undated trips are excluded.' : 'No trip dates were reported.' ?></p>
+                  <?php endif; ?>
+                </div>
+              </article>
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Maintenance by department</h2><p>Uncompleted work due <?= h($weekRangeLabel) ?> UTC</p></div><span class="chart-unit">items</span></div>
+                <div class="department-chart">
+                  <?php $maxDepartmentIssues = max(1, ...array_column($maintenanceByDepartment, 'issue_count')); ?>
+                  <?php foreach ($maintenanceByDepartment as $department): ?><div class="department-row"><div><span><?= h($department['department']) ?></span><strong><?= h($department['issue_count']) ?></strong></div><i style="--bar-width: <?= h((int) round($department['issue_count'] / $maxDepartmentIssues * 100)) ?>%"></i></div><?php endforeach; ?>
+                  <?php if ($maintenanceByDepartment === []): ?><p class="chart-empty">No uncompleted maintenance due this week.</p><?php endif; ?>
+                </div>
+              </article>
+              <article class="panel chart-panel bg-white">
+                <div class="panel-heading"><div><h2>Fuel consumption by week</h2><p><?= $monthlyMetricsIncludeSample ? 'Sample data · missing weeks are illustrative' : 'Sample data · reported weekly totals' ?></p></div><span class="chart-unit">L</span></div>
+                <div class="monthly-fuel-chart">
+                  <svg viewBox="0 0 500 170" role="img" aria-label="Fuel consumption in liters by week for <?= h($monthLabel) ?>, sample data">
+                    <line class="fuel-gridline" x1="42" y1="33" x2="485" y2="33"></line>
+                    <line class="fuel-gridline" x1="42" y1="85" x2="485" y2="85"></line>
+                    <line class="fuel-gridline" x1="42" y1="138" x2="485" y2="138"></line>
+                    <text class="fuel-axis-label" x="36" y="29"><?= h(number_format($fuelChartMaximum)) ?></text>
+                    <text class="fuel-axis-label" x="36" y="134">0</text>
+                    <?php foreach ($fuelChartSegments as $segment): ?><path class="fuel-line-segment" d="<?= h($segment) ?>"></path><?php endforeach; ?>
+                    <?php foreach ($fuelChartPoints as $point): ?>
+                    <?php if ($point['value'] !== null): ?>
+                    <circle class="fuel-line-point" cx="<?= h(number_format($point['x'], 1, '.', '')) ?>" cy="<?= h(number_format($point['y'], 1, '.', '')) ?>" r="4"><title><?= h($point['label']) ?>: <?= h(number_format($point['value'])) ?> L</title></circle>
+                    <text class="fuel-point-label" x="<?= h(number_format($point['x'], 1, '.', '')) ?>" y="<?= h(number_format($point['y'] - 9, 1, '.', '')) ?>"><?= h(number_format($point['value'])) ?></text>
+                    <?php endif; ?>
+                    <?php endforeach; ?>
+                  </svg>
+                  <div class="fuel-week-labels" style="grid-template-columns: repeat(<?= h(count($fuelChartPoints)) ?>, minmax(0, 1fr))">
+                    <?php foreach ($fuelChartPoints as $point): ?><span><strong><?= h($point['label']) ?></strong><small><?= $point['value'] === null ? 'Not reported' : h(number_format($point['value'])) . ' L' ?></small></span><?php endforeach; ?>
+                  </div>
+                </div>
+              </article>
+            </div>
           </section>
           <?php elseif ($activeView === 'settings'): ?>
           <section class="panel settings-panel">

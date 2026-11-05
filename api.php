@@ -70,19 +70,26 @@ try {
         $location = trim((string) ($payload['location'] ?? ''));
         $assignment = trim((string) ($payload['assignment'] ?? ''));
         $lastService = (string) ($payload['last_service'] ?? '');
-        $fuelLevel = filter_var($payload['fuel_level'] ?? null, FILTER_VALIDATE_INT);
+        $fuelLevelInput = $payload['fuel_level'] ?? null;
+        $fuelLevel = null;
+        $invalidFuelLevel = false;
+        if ($fuelLevelInput !== null && $fuelLevelInput !== '') {
+            $fuelLevel = filter_var($fuelLevelInput, FILTER_VALIDATE_INT);
+            $invalidFuelLevel = $fuelLevel === false || $fuelLevel < 0 || $fuelLevel > 100;
+        }
 
         if ($vehicleCode === '' || $make === '' || strlen($make) > 80 || $vehicleType === '' || strlen($vehicleType) > 60
             || !in_array($status, ['active', 'idle', 'maintenance', 'offline'], true)
             || strlen($driverName) > 100 || $location === '' || strlen($location) > 120 || strlen($assignment) > 120
-            || !validDate($lastService) || $fuelLevel === false || $fuelLevel < 0 || $fuelLevel > 100) {
+            || !validDate($lastService) || $invalidFuelLevel) {
             respond(422, ['error' => 'Check the vehicle fields and provide valid values.']);
         }
 
         $statement = $db->prepare(
             'UPDATE vehicles SET make = :make, vehicle_type = :vehicle_type, status = :status,
                 driver_name = :driver_name, location = :location, assignment = :assignment,
-                last_service = :last_service, fuel_level = :fuel_level
+                last_service = :last_service, fuel_level = :fuel_level,
+                fuel_level_updated_at = datetime(\'now\')
              WHERE vehicle_code = :vehicle_code'
         );
         $statement->execute([
@@ -115,11 +122,13 @@ try {
         $status = (string) ($payload['status'] ?? '');
         $delayMinutes = filter_var($payload['delay_minutes'] ?? null, FILTER_VALIDATE_INT);
         $eta = trim((string) ($payload['eta'] ?? ''));
+        $tripDate = trim((string) ($payload['trip_date'] ?? ''));
 
         if ($tripId === '' || $vehicleCode === '' || $driverName === '' || strlen($driverName) > 100
             || $origin === '' || strlen($origin) > 120 || $destination === '' || strlen($destination) > 120
             || !in_array($status, ['active', 'upcoming', 'completed'], true)
-            || $delayMinutes === false || $delayMinutes < 0 || $eta === '' || strlen($eta) > 30) {
+            || $delayMinutes === false || $delayMinutes < 0 || $eta === '' || strlen($eta) > 30
+            || ($tripDate !== '' && !validDate($tripDate))) {
             respond(422, ['error' => 'Check the trip fields and provide valid values.']);
         }
         $vehicleExists = $db->prepare('SELECT 1 FROM vehicles WHERE vehicle_code = :vehicle_code');
@@ -133,7 +142,7 @@ try {
         $statement = $db->prepare(
             'UPDATE trips SET vehicle_code = :vehicle_code, driver_name = :driver_name,
                 origin = :origin, destination = :destination, status = :status,
-                delay_minutes = :delay_minutes, eta = :eta WHERE id = :id'
+                delay_minutes = :delay_minutes, eta = :eta, trip_date = :trip_date WHERE id = :id'
         );
         $statement->execute([
             'vehicle_code' => $vehicleCode,
@@ -143,6 +152,7 @@ try {
             'status' => $status,
             'delay_minutes' => $delayMinutes,
             'eta' => $eta,
+            'trip_date' => $tripDate !== '' ? $tripDate : null,
             'id' => $tripId,
         ]);
         if ($statement->rowCount() === 0) {
