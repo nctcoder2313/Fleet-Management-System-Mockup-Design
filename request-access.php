@@ -50,12 +50,13 @@ declare(strict_types=1);
         }
 
         @media (min-width: 768px) and (min-height: 640px) {
-            main {
+            body > main {
                 height: 100vh;
+                height: 100dvh;
                 min-height: 0;
-                overflow: hidden;
             }
         }
+
     </style>
 </head>
 <body class="font-sans text-slate-900 antialiased">

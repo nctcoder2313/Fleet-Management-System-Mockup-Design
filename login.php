@@ -164,17 +164,41 @@ $displayRole = $signedIn
             }
         }
 
-        @media (min-width: 768px) and (min-height: 640px) {
-            main {
+        @media (min-width: 768px) and (min-height: 540px) {
+            body {
                 height: 100vh;
+                height: 100dvh;
                 overflow: hidden;
             }
 
-            main > section {
+            body > main {
+                position: fixed;
+                inset: 0;
                 height: 100vh;
+                height: 100dvh;
                 min-height: 0;
             }
+
+            body > main > section {
+                height: 100%;
+                min-height: 0;
+            }
+
+            body > main > .hero-panel,
+            body > main > .gradient-surface {
+                overflow-x: hidden;
+                overflow-y: auto;
+            }
+
+            body > main > .gradient-surface::before {
+                inset: 0;
+            }
+
+            .hero-panel .hero-vehicle {
+                max-height: clamp(120px, calc(100dvh - 420px), 280px);
+            }
         }
+
     </style>
 </head>
 <body class="font-sans text-slate-900 antialiased">
@@ -194,7 +218,7 @@ $displayRole = $signedIn
             </div>
 
             <div class="flex flex-1 items-center justify-center py-5">
-                <img class="max-h-[220px] w-full object-contain sm:max-h-[280px] md:max-h-[40vh] lg:max-h-[48vh]" src="assets/fleet%20pcc%20image.jpg" alt="Paragon fleet service vehicle">
+                <img class="hero-vehicle max-h-[220px] w-full object-contain sm:max-h-[280px] md:max-h-[40vh] lg:max-h-[48vh]" src="assets/fleet%20pcc%20image.jpg" alt="Paragon fleet service vehicle">
             </div>
 
             <div class="relative z-10 mt-auto hidden pt-6 text-xs text-slate-600 md:block">
