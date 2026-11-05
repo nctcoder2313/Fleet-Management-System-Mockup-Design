@@ -30,8 +30,142 @@ if (!is_array($payload)) {
     respond(400, ['error' => 'A valid JSON request body is required.']);
 }
 
+if (!in_array($payload['action'] ?? '', ['record-expense', 'record-advance', 'liquidate-advance'], true)) {
+    respond(404, ['error' => 'That action is not available in the Accounting workspace.']);
+}
+
 try {
     $db = require __DIR__ . '/database.php';
+
+    if (($payload['action'] ?? '') === 'record-expense') {
+        $expenseDate = (string) ($payload['expense_date'] ?? '');
+        $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
+        $category = (string) ($payload['category'] ?? '');
+        $description = trim((string) ($payload['description'] ?? ''));
+        $amount = filter_var($payload['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        $status = (string) ($payload['status'] ?? 'Paid');
+        $categories = ['Fuel', 'Maintenance', 'Repairs', 'Parts', 'Registration', 'Inspection', 'Insurance', 'Tolls', 'Parking', 'Cleaning', 'Permits', 'Fines', 'Other'];
+        if (!validDate($expenseDate) || $vehicleCode === '' || !in_array($category, $categories, true)
+            || $description === '' || strlen($description) > 160 || $amount === false || $amount <= 0
+            || $amount > 10000000 || !in_array($status, ['Paid', 'Pending'], true)) {
+            respond(422, ['error' => 'Check the expense fields and provide valid values.']);
+        }
+        $amountCents = (int) round($amount * 100);
+        if ($amountCents < 1) {
+            respond(422, ['error' => 'Expense amount must be at least one cent.']);
+        }
+        $vehicleExists = $db->prepare('SELECT driver_name FROM vehicles WHERE vehicle_code = :vehicle_code');
+        $vehicleExists->execute(['vehicle_code' => $vehicleCode]);
+        $vehicle = $vehicleExists->fetch(PDO::FETCH_ASSOC);
+        if (!$vehicle) {
+            respond(422, ['error' => 'Choose an existing vehicle.']);
+        }
+        $statement = $db->prepare(
+            'INSERT INTO expenses (expense_date, vehicle_code, driver_name, category, description, amount_cents, status)
+             VALUES (:expense_date, :vehicle_code, :driver_name, :category, :description, :amount_cents, :status)'
+        );
+        $statement->execute([
+            'expense_date' => $expenseDate,
+            'vehicle_code' => $vehicleCode,
+            'driver_name' => $vehicle['driver_name'],
+            'category' => $category,
+            'description' => $description,
+            'amount_cents' => $amountCents,
+            'status' => $status,
+        ]);
+        respond(201, ['message' => 'Expense recorded.']);
+    }
+
+    if (($payload['action'] ?? '') === 'record-advance') {
+        $advanceDate = (string) ($payload['advance_date'] ?? '');
+        $driverName = trim((string) ($payload['driver_name'] ?? ''));
+        $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
+        $purpose = trim((string) ($payload['purpose'] ?? ''));
+        $notes = trim((string) ($payload['notes'] ?? ''));
+        $amount = filter_var($payload['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        if (!validDate($advanceDate) || $driverName === '' || $vehicleCode === '' || $purpose === ''
+            || strlen($purpose) > 120 || strlen($notes) > 500 || $amount === false || $amount <= 0 || $amount > 10000000) {
+            respond(422, ['error' => 'Check the advance fields and provide valid values.']);
+        }
+        $amountCents = (int) round($amount * 100);
+        if ($amountCents < 1) {
+            respond(422, ['error' => 'Advance amount must be at least one cent.']);
+        }
+        $driverExists = $db->prepare('SELECT 1 FROM drivers WHERE name = :driver_name');
+        $driverExists->execute(['driver_name' => $driverName]);
+        $vehicleExists = $db->prepare('SELECT 1 FROM vehicles WHERE vehicle_code = :vehicle_code');
+        $vehicleExists->execute(['vehicle_code' => $vehicleCode]);
+        if (!$driverExists->fetchColumn() || !$vehicleExists->fetchColumn()) {
+            respond(422, ['error' => 'Choose an existing driver and vehicle.']);
+        }
+        $statement = $db->prepare(
+            'INSERT INTO cash_advances (advance_date, driver_name, vehicle_code, purpose, notes, amount_cents)
+             VALUES (:advance_date, :driver_name, :vehicle_code, :purpose, :notes, :amount_cents)'
+        );
+        $statement->execute([
+            'advance_date' => $advanceDate,
+            'driver_name' => $driverName,
+            'vehicle_code' => $vehicleCode,
+            'purpose' => $purpose,
+            'notes' => $notes,
+            'amount_cents' => $amountCents,
+        ]);
+        respond(201, ['message' => 'Driver advance recorded.']);
+    }
+
+    if (($payload['action'] ?? '') === 'liquidate-advance') {
+        $advanceId = filter_var($payload['id'] ?? null, FILTER_VALIDATE_INT);
+        $liquidatedAt = (string) ($payload['liquidated_at'] ?? '');
+        $liquidatedBy = trim((string) ($payload['liquidated_by'] ?? ''));
+        $amount = filter_var($payload['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        $receiptReference = trim((string) ($payload['receipt_reference'] ?? ''));
+        $liquidationNotes = trim((string) ($payload['liquidation_notes'] ?? ''));
+        if (!$advanceId || !validDate($liquidatedAt) || $liquidatedBy === '' || strlen($liquidatedBy) > 120
+            || $amount === false || $amount <= 0
+            || strlen($receiptReference) > 80 || strlen($liquidationNotes) > 500) {
+            respond(422, ['error' => 'Check the liquidation fields and provide valid values.']);
+        }
+        $amountCents = (int) round($amount * 100);
+        $db->beginTransaction();
+        $advanceStatement = $db->prepare('SELECT amount_cents, liquidated_cents FROM cash_advances WHERE id = :id');
+        $advanceStatement->execute(['id' => $advanceId]);
+        $advance = $advanceStatement->fetch(PDO::FETCH_ASSOC);
+        if (!$advance) {
+            $db->rollBack();
+            respond(404, ['error' => 'That advance was not found.']);
+        }
+        $remainingCents = (int) $advance['amount_cents'] - (int) $advance['liquidated_cents'];
+        if ($amountCents < 1 || $amountCents > $remainingCents) {
+            $db->rollBack();
+            respond(422, ['error' => 'Liquidation cannot exceed the outstanding balance.']);
+        }
+        $statement = $db->prepare(
+            'UPDATE cash_advances SET liquidated_cents = liquidated_cents + :amount_cents,
+                liquidated_at = :liquidated_at, receipt_reference = :receipt_reference,
+                liquidation_notes = :liquidation_notes WHERE id = :id'
+        );
+        $statement->execute([
+            'amount_cents' => $amountCents,
+            'liquidated_at' => $liquidatedAt,
+            'receipt_reference' => $receiptReference,
+            'liquidation_notes' => $liquidationNotes,
+            'id' => $advanceId,
+        ]);
+        $liquidationStatement = $db->prepare(
+            'INSERT INTO advance_liquidations (advance_id, liquidated_at, liquidated_by, amount_cents, receipt_reference, notes)
+             VALUES (:advance_id, :liquidated_at, :liquidated_by, :amount_cents, :receipt_reference, :notes)'
+        );
+        $liquidationStatement->execute([
+            'advance_id' => $advanceId,
+            'liquidated_at' => $liquidatedAt,
+            'liquidated_by' => $liquidatedBy,
+            'amount_cents' => $amountCents,
+            'receipt_reference' => $receiptReference,
+            'notes' => $liquidationNotes,
+        ]);
+        $db->commit();
+        respond(200, ['message' => 'Driver advance liquidation saved.']);
+    }
 
     if (($payload['action'] ?? '') === 'report-issue') {
         $vehicleOrTrip = trim((string) ($payload['vehicle'] ?? ''));

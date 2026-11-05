@@ -1,8 +1,8 @@
-# Fleet Management System Mockup
+# Fleet Accounting Dashboard
 
-A PHP-rendered manager dashboard for monitoring fleet status, active trips,
-driver assignments, maintenance schedules, and operational performance. The
-interface uses Tailwind CSS, vanilla JavaScript, and SQLite.
+A PHP-rendered accounting workspace for reviewing fleet expenses, unpaid bills,
+and driver cash advances and liquidations. The interface uses Tailwind CSS,
+vanilla JavaScript, and SQLite.
 
 ## Requirements
 
@@ -22,17 +22,16 @@ creates `fleet.sqlite` and loads the sample data from `schema.sql`.
 
 ## Stack and interactions
 
-- Use the sidebar to switch between Overview, Fleet Status, Trips & Assignments,
-  Drivers, Maintenance, Reports, and Settings workspaces.
-- Overview is read-only. Search and edit vehicle, trip, driver duty, and
-  maintenance records in their respective workspaces; changes are saved to SQLite.
-- Review utilization, trip-completion, fuel, and maintenance-by-department reports.
-- Submit operational issue reports from the Maintenance workspace; reports are saved to SQLite.
+- Use Overview for financial summary cards, expense trend, category spend, recent expenses, and open driver advances.
+- Use Expenses to filter and review the full ledger, record expenses, and export CSV reports.
+- Use Driver Advances to record advances, filter the full register, and save partial or complete liquidations with receipt references.
+- Use Reports to review period totals, monthly trends, and expense categories.
 
-The manager workspace contains operational information only. It does not expose
-accounting totals, payroll or employee records, head-admin user management, or
-system configuration. The role and sample data are for a mock-up; the project
-does not implement user authentication or connect to live fleet data.
+The dashboard uses local sample data, including 30 expense records and 18
+driver advances. The project does not implement user authentication, payroll,
+head-admin user management, or connect to live fleet data. Accounting records
+are stored in the local SQLite database. The API only accepts accounting write
+actions in this workspace.
 
 Typography uses the system sans-serif stack. Tailwind's Play CDN is intended
 for mockups and development, not production deployment.
