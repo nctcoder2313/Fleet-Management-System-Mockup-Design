@@ -222,7 +222,7 @@ $displayRole = $signedIn
                     <p class="mt-1 text-xs leading-5 text-slate-500">
                         <?= $signedIn
                             ? 'Your account is ready to go.'
-                            : 'Enter your work email and password to continue.' ?>
+                            : 'Enter your email and password to continue.' ?>
                     </p>
                 </div>
 
@@ -259,7 +259,7 @@ $displayRole = $signedIn
                     <form method="post" action="" class="space-y-4">
                         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'], ENT_QUOTES, 'UTF-8') ?>">
                         <div>
-                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="email">Work email</label>
+                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="email">Email</label>
                             <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" id="email" name="email" type="email" autocomplete="username" placeholder="you@company.com" required>
                         </div>
                         <div>

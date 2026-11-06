@@ -16,6 +16,12 @@ if (!isset($_SESSION['csrf_token'])) {
 
 $error = '';
 $notice = '';
+if ($_SERVER['REQUEST_METHOD'] === 'GET'
+    && isset($_SESSION['access_request_notice'])
+    && is_string($_SESSION['access_request_notice'])) {
+    $notice = $_SESSION['access_request_notice'];
+    unset($_SESSION['access_request_notice']);
+}
 $name = '';
 $email = '';
 $role = '';
@@ -72,14 +78,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             'reason' => $reason === '' ? null : $reason,
                             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
                         ]);
-                        $notice = 'Your request was submitted. An administrator will review it.';
+                        $_SESSION['access_request_notice'] = 'Your request has been submitted successfully.';
                         $name = $email = $role = $reason = $password = $passwordConfirmation = '';
                         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                        header('Location: request-access.php');
+                        exit;
                     }
                 }
             } catch (PDOException $exception) {
                 error_log('Fleet management access request database error: ' . $exception->getMessage());
-                $error = 'We could not save your request. Please try again later.';
+                $error = 'We could not save your request. Make sure MySQL is running and the fleetwise database is set up. If this is an existing database, run database/migrate-add-request-password.sql in phpMyAdmin.';
             }
         }
     }
@@ -163,20 +171,32 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
                 <p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800" role="alert">
                     <?= $escape($error) ?>
                 </p>
-            <?php elseif ($notice !== ''): ?>
-                <p class="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900" role="status">
-                    <?= $escape($notice) ?>
-                </p>
             <?php endif; ?>
 
-            <form id="request-form" class="space-y-3" action="request-access.php" method="post">
+            <?php if ($notice !== ''): ?>
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-center" role="status">
+                    <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="m5 12.5 4.5 4.5L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-sm font-semibold text-emerald-900"><?= $escape($notice) ?></h3>
+                    <p class="mt-2 text-xs leading-5 text-emerald-800">
+                        Your request is pending review. You can log in once it has been approved and your account is activated.
+                    </p>
+                    <a class="mt-4 inline-flex w-full justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" href="login.php">
+                            Back to log in
+                    </a>
+                </div>
+            <?php else: ?>
+                <form id="request-form" class="space-y-3" action="request-access.php" method="post">
                     <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700" for="request-name">Full name</label>
                         <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-name" name="name" type="text" autocomplete="name" placeholder="Your full name" maxlength="120" value="<?= $escape($name) ?>" required>
                     </div>
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-email">Work email</label>
+                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-email">Email</label>
                         <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" maxlength="254" value="<?= $escape($email) ?>" required>
                     </div>
                     <div>
@@ -211,13 +231,14 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
                     <button class="w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
                         Submit request
                     </button>
-            </form>
+                </form>
 
-            <p class="mt-4 border-t border-slate-100 pt-3 text-center">
-                <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="login.php">
+                <p class="mt-4 border-t border-slate-100 pt-3 text-center">
+                    <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="login.php">
                     Back to log in
-                </a>
-            </p>
+                    </a>
+                </p>
+            <?php endif; ?>
         </section>
     </main>
 </body>
