@@ -70,8 +70,42 @@ CREATE TABLE IF NOT EXISTS issue_reports (
     id INTEGER PRIMARY KEY,
     vehicle_or_trip TEXT NOT NULL,
     description TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    status TEXT NOT NULL DEFAULT 'awaiting_review' CHECK (status IN ('awaiting_review', 'in_progress', 'delayed', 'completed')),
+    issue_type TEXT,
+    priority TEXT CHECK (priority IS NULL OR priority IN ('low', 'medium', 'high')),
+    due_date TEXT,
+    maintenance_notes TEXT NOT NULL DEFAULT '',
+    is_sample INTEGER NOT NULL DEFAULT 0 CHECK (is_sample IN (0, 1))
 );
+
+-- These illustrative issue reports reuse the sample fleet's existing maintenance work.
+INSERT INTO issue_reports
+    (vehicle_or_trip, description, created_at, status, issue_type, priority, due_date, maintenance_notes, is_sample)
+SELECT 'VH-219', 'Oil change is overdue and needs scheduling.', datetime('now', '-2 days'),
+       'delayed', 'Maintenance', 'high', date('now', '-2 days'),
+       'Mock-up note · Vehicle is awaiting a service bay.', 1
+WHERE NOT EXISTS (SELECT 1 FROM issue_reports WHERE is_sample = 1 AND vehicle_or_trip = 'VH-219');
+
+INSERT INTO issue_reports
+    (vehicle_or_trip, description, created_at, status, issue_type, priority, due_date, maintenance_notes, is_sample)
+SELECT 'VH-084', 'Tire rotation due at the North hub.', datetime('now', '-1 day'),
+       'in_progress', 'Tires', 'medium', date('now', '+2 days'),
+       'Mock-up note · Work is scheduled with the North hub team.', 1
+WHERE NOT EXISTS (SELECT 1 FROM issue_reports WHERE is_sample = 1 AND vehicle_or_trip = 'VH-084');
+
+INSERT INTO issue_reports
+    (vehicle_or_trip, description, created_at, status, issue_type, priority, due_date, maintenance_notes, is_sample)
+SELECT 'VH-307', 'Annual inspection is coming due.', datetime('now'),
+       'awaiting_review', 'Inspection', 'low', date('now', '+4 days'), '', 1
+WHERE NOT EXISTS (SELECT 1 FROM issue_reports WHERE is_sample = 1 AND vehicle_or_trip = 'VH-307');
+
+INSERT INTO issue_reports
+    (vehicle_or_trip, description, created_at, status, issue_type, priority, due_date, maintenance_notes, is_sample)
+SELECT 'VH-331', 'Brake inspection completed at the Central depot.', datetime('now', '-3 days'),
+       'completed', 'Safety', 'high', date('now', '-1 day'),
+       'Mock-up note · Brake inspection passed.', 1
+WHERE NOT EXISTS (SELECT 1 FROM issue_reports WHERE is_sample = 1 AND vehicle_or_trip = 'VH-331');
 
 INSERT OR IGNORE INTO vehicles
     (vehicle_code, make, vehicle_type, status, driver_name, driver_initials, driver_color, location, assignment, last_service, fuel_level, fuel_level_updated_at)

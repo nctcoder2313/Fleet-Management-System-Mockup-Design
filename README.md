@@ -32,7 +32,8 @@ creates `fleet.sqlite` and loads the sample data from `schema.sql`.
   recent activity by a custom range, Today, Last 7 days, or This month. Missing
   daily metrics are clearly identified as sample data; current KPI cards remain
   fleet snapshots.
-- Submit operational issue reports from the Maintenance workspace; reports are saved to SQLite.
+- Track reported issues in the Maintenance workspace. New reports begin in Awaiting Review, and managers can move work through In Progress or Delayed to Completed; issue records remain in SQLite throughout the workflow.
+- The Maintenance workspace shows clearly labeled mock-up issue examples based on the existing sample vehicle maintenance schedule. Reports entered through the form are saved as user-submitted mock-up data.
 
 ## Database update
 

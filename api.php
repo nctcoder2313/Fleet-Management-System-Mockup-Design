@@ -36,13 +36,73 @@ try {
     if (($payload['action'] ?? '') === 'report-issue') {
         $vehicleOrTrip = trim((string) ($payload['vehicle'] ?? ''));
         $description = trim((string) ($payload['description'] ?? ''));
+        $issueType = trim((string) ($payload['issue_type'] ?? ''));
+        $priority = (string) ($payload['priority'] ?? '');
+        $validIssueTypes = ['', 'Maintenance', 'Mechanical', 'Tires', 'Electrical', 'Safety', 'Other'];
+        $validPriorities = ['', 'low', 'medium', 'high'];
         if ($vehicleOrTrip === '' || $description === '' || strlen($vehicleOrTrip) > 80 || strlen($description) > 1000) {
             respond(422, ['error' => 'Provide a vehicle or trip and a description (up to 1,000 characters).']);
         }
+        if (!in_array($issueType, $validIssueTypes, true) || !in_array($priority, $validPriorities, true)) {
+            respond(422, ['error' => 'Choose a valid issue type and priority.']);
+        }
 
-        $statement = $db->prepare('INSERT INTO issue_reports (vehicle_or_trip, description) VALUES (:vehicle, :description)');
-        $statement->execute(['vehicle' => $vehicleOrTrip, 'description' => $description]);
-        respond(201, ['message' => 'Issue report submitted.']);
+        $statement = $db->prepare(
+            'INSERT INTO issue_reports (vehicle_or_trip, description, issue_type, priority)
+             VALUES (:vehicle, :description, :issue_type, :priority)'
+        );
+        $statement->execute([
+            'vehicle' => $vehicleOrTrip,
+            'description' => $description,
+            'issue_type' => $issueType !== '' ? $issueType : null,
+            'priority' => $priority !== '' ? $priority : null,
+        ]);
+        respond(201, ['message' => 'Issue report submitted and marked Awaiting Review.']);
+    }
+
+    if (($payload['action'] ?? '') === 'update-issue') {
+        $issueId = filter_var($payload['id'] ?? null, FILTER_VALIDATE_INT);
+        $status = (string) ($payload['status'] ?? '');
+        $dueDate = trim((string) ($payload['due_date'] ?? ''));
+        $maintenanceNotes = trim((string) ($payload['maintenance_notes'] ?? ''));
+        if (!$issueId || !in_array($status, ['awaiting_review', 'in_progress', 'delayed', 'completed'], true)
+            || ($dueDate !== '' && !validDate($dueDate)) || strlen($maintenanceNotes) > 3000) {
+            respond(422, ['error' => 'Check the issue status, due date, and maintenance notes.']);
+        }
+
+        $currentIssue = $db->prepare('SELECT status FROM issue_reports WHERE id = :id');
+        $currentIssue->execute(['id' => $issueId]);
+        $currentStatus = $currentIssue->fetchColumn();
+        if ($currentStatus === false) {
+            respond(404, ['error' => 'That issue report was not found.']);
+        }
+
+        $allowedTransitions = [
+            'awaiting_review' => ['in_progress'],
+            'in_progress' => ['delayed', 'completed'],
+            'delayed' => ['in_progress', 'completed'],
+            'completed' => [],
+        ];
+        if ($status !== $currentStatus && !in_array($status, $allowedTransitions[$currentStatus] ?? [], true)) {
+            respond(422, ['error' => 'That status change is not allowed in the issue workflow.']);
+        }
+
+        // An in-progress issue past its due date is saved as Delayed, not merely styled differently.
+        $savedStatus = $status === 'in_progress' && $dueDate !== '' && $dueDate < gmdate('Y-m-d')
+            ? 'delayed'
+            : $status;
+        $statement = $db->prepare(
+            'UPDATE issue_reports
+             SET status = :status, due_date = :due_date, maintenance_notes = :maintenance_notes
+             WHERE id = :id'
+        );
+        $statement->execute([
+            'status' => $savedStatus,
+            'due_date' => $dueDate !== '' ? $dueDate : null,
+            'maintenance_notes' => $maintenanceNotes,
+            'id' => $issueId,
+        ]);
+        respond(200, ['message' => 'Issue updated.']);
     }
 
     if (($payload['action'] ?? '') === 'request-maintenance') {

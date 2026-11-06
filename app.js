@@ -8,6 +8,7 @@ const tableCount = document.querySelector("#table-count");
 const toast = document.querySelector("#toast");
 const detailDialog = document.querySelector("#detail-dialog");
 const issueDialog = document.querySelector("#issue-dialog");
+const issueDetailDialog = document.querySelector("#issue-detail-dialog");
 let activeFilter = "all";
 let toastTimeout;
 
@@ -98,6 +99,47 @@ document.querySelectorAll("[data-maintenance-request]").forEach((button) => {
 });
 document.querySelector("#report-issue")?.addEventListener("click", () => issueDialog.showModal());
 
+const issueStatusLabels = {
+  awaiting_review: "Awaiting Review",
+  in_progress: "In Progress",
+  delayed: "Delayed",
+  completed: "Completed"
+};
+const issueTransitions = {
+  awaiting_review: ["awaiting_review", "in_progress"],
+  in_progress: ["in_progress", "delayed", "completed"],
+  delayed: ["delayed", "in_progress", "completed"],
+  completed: ["completed"]
+};
+document.querySelectorAll(".issue-card").forEach((card) => {
+  card.addEventListener("click", () => {
+    const data = card.dataset;
+    const form = document.querySelector("#issue-detail-form");
+    const setValue = (selector, value) => {
+      document.querySelector(selector).textContent = value || "Not specified";
+    };
+    document.querySelector("#issue-detail-title").textContent = `Issue #${data.issueId}`;
+    setValue("#issue-detail-vehicle", data.issueVehicle);
+    setValue("#issue-detail-type", data.issueType);
+    setValue("#issue-detail-priority", data.issuePriority);
+    setValue("#issue-detail-created", data.issueCreated);
+    setValue("#issue-detail-description", data.issueDescription);
+    form.elements.id.value = data.issueId;
+    form.elements.due_date.value = data.issueDue;
+    form.elements.maintenance_notes.value = data.issueNotes;
+
+    const statusSelect = form.elements.status;
+    statusSelect.replaceChildren(...(issueTransitions[data.issueStatus] || [data.issueStatus]).map((status) => {
+      const option = document.createElement("option");
+      option.value = status;
+      option.textContent = issueStatusLabels[status] || status;
+      return option;
+    }));
+    statusSelect.value = data.issueStatus;
+    issueDetailDialog.showModal();
+  });
+});
+
 document.querySelectorAll(".dialog-close").forEach((button) => {
   button.addEventListener("click", () => button.closest("dialog").close());
 });
@@ -123,7 +165,9 @@ document.querySelector("#issue-form").addEventListener("submit", async (event) =
       body: JSON.stringify({
         action: "report-issue",
         vehicle: data.get("vehicle"),
-        description: data.get("description")
+        description: data.get("description"),
+        issue_type: data.get("issue_type"),
+        priority: data.get("priority")
       })
     });
     const result = await response.json();
@@ -131,8 +175,40 @@ document.querySelector("#issue-form").addEventListener("submit", async (event) =
     showToast(result.message);
     form.reset();
     issueDialog.close();
+    window.setTimeout(() => window.location.reload(), 650);
   } catch (error) {
     showToast(error.message || "Issue report failed. Please try again.");
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+document.querySelector("#issue-detail-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector('[type="submit"]');
+  submitButton.disabled = true;
+  const data = new FormData(form);
+
+  try {
+    const response = await fetch("api.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update-issue",
+        id: data.get("id"),
+        status: data.get("status"),
+        due_date: data.get("due_date"),
+        maintenance_notes: data.get("maintenance_notes")
+      })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Issue update failed.");
+    showToast(result.message);
+    issueDetailDialog.close();
+    window.setTimeout(() => window.location.reload(), 650);
+  } catch (error) {
+    showToast(error.message || "Issue update failed. Please try again.");
   } finally {
     submitButton.disabled = false;
   }

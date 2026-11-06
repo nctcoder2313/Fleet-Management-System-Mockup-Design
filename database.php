@@ -106,6 +106,23 @@ try {
             $db->exec("ALTER TABLE maintenance ADD COLUMN department TEXT NOT NULL DEFAULT 'Operations'");
         }
     }
+    if (in_array('issue_reports', $existingTables, true)) {
+        $issueColumns = $db->query('PRAGMA table_info(issue_reports)')->fetchAll(PDO::FETCH_COLUMN, 1);
+        $issueMigrations = [
+            'status' => "TEXT NOT NULL DEFAULT 'awaiting_review' CHECK (status IN ('awaiting_review', 'in_progress', 'delayed', 'completed'))",
+            'issue_type' => 'TEXT',
+            'priority' => 'TEXT',
+            'due_date' => 'TEXT',
+            'maintenance_notes' => "TEXT NOT NULL DEFAULT ''",
+            'is_sample' => 'INTEGER NOT NULL DEFAULT 0 CHECK (is_sample IN (0, 1))',
+        ];
+        foreach ($issueMigrations as $column => $definition) {
+            if (!in_array($column, $issueColumns, true)) {
+                // Add workflow fields in place so every previously reported issue remains available.
+                $db->exec('ALTER TABLE issue_reports ADD COLUMN ' . $column . ' ' . $definition);
+            }
+        }
+    }
 
     $schema = file_get_contents(__DIR__ . '/schema.sql');
     if ($schema === false) {

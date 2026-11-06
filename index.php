@@ -202,6 +202,25 @@ $allMaintenanceItems = $db->query(
      ORDER BY CASE state WHEN \'overdue\' THEN 0 WHEN \'due soon\' THEN 1 WHEN \'requested\' THEN 2 ELSE 3 END, due_date'
 )->fetchAll(PDO::FETCH_ASSOC);
 
+// Persist overdue issue reports as Delayed so their section and saved status stay aligned.
+if ($activeView === 'maintenance') {
+    $db->exec(
+        "UPDATE issue_reports SET status = 'delayed'
+         WHERE status = 'in_progress' AND due_date IS NOT NULL AND due_date < date('now')"
+    );
+    $issueReports = $db->query(
+        'SELECT id, vehicle_or_trip, description, created_at, status, issue_type, priority,
+                due_date, maintenance_notes, is_sample
+         FROM issue_reports
+         ORDER BY created_at DESC, id DESC'
+    )->fetchAll(PDO::FETCH_ASSOC);
+} else {
+    $issueReports = [];
+}
+$newIssues = array_values(array_filter($issueReports, static fn (array $issue): bool => $issue['status'] === 'awaiting_review'));
+$activeIssues = array_values(array_filter($issueReports, static fn (array $issue): bool => in_array($issue['status'], ['in_progress', 'delayed'], true)));
+$completedIssues = array_values(array_filter($issueReports, static fn (array $issue): bool => $issue['status'] === 'completed'));
+
 $drivers = $db->query(
     'SELECT drivers.id, drivers.name, drivers.on_duty, vehicles.vehicle_code, vehicles.assignment
      FROM drivers

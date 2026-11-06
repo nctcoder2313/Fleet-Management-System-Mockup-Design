@@ -100,7 +100,7 @@ $views = [
     'fleet' => ['title' => 'Fleet status', 'description' => 'Review and update vehicle details, availability, and assignments.'],
     'trips' => ['title' => 'Trips & assignments', 'description' => 'Review routes and update trip status, driver, and timing.'],
     'drivers' => ['title' => 'Drivers', 'description' => 'Review driver availability and update duty status.'],
-    'maintenance' => ['title' => 'Maintenance', 'description' => 'Update scheduled work and submit operational issues.'],
+    'maintenance' => ['title' => 'Maintenance', 'description' => 'Track reported issues, review progress, and update maintenance status.'],
     'reports' => ['title' => 'Reports', 'description' => 'Review weekly utilization, trip status, fuel consumption, and maintenance.'],
     'settings' => ['title' => 'Settings', 'description' => 'Workspace details and available manager settings.'],
 ];
@@ -585,23 +585,76 @@ $views = [
             <?php endforeach; ?>
           </section>
           <?php elseif ($activeView === 'maintenance'): ?>
-          <section class="workspace-grid" aria-label="Editable maintenance records">
-            <?php foreach ($allMaintenanceItems as $item): ?>
-            <article class="panel workspace-card search-item" data-search="<?= h(strtolower(implode(' ', $item))) ?>">
-              <div class="panel-heading"><div><h2><?= h($item['vehicle_code']) ?> · <?= h($item['task']) ?></h2><p><?= h($item['department']) ?> · <?= h($item['depot']) ?></p></div><span class="maintenance-tag tag-<?= h(str_replace(' ', '-', $item['state'])) ?>"><?= h(ucfirst($item['state'])) ?></span></div>
-              <form class="record-form" data-record-form>
-                <input type="hidden" name="action" value="update-maintenance">
-                <input type="hidden" name="id" value="<?= h($item['id']) ?>">
-                <label>Vehicle<select name="vehicle_code"><?php foreach ($vehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>" <?= $item['vehicle_code'] === $vehicle['vehicle_code'] ? 'selected' : '' ?>><?= h($vehicle['vehicle_code']) ?></option><?php endforeach; ?></select></label>
-                <label>Task<input name="task" maxlength="120" required value="<?= h($item['task']) ?>"></label>
-                <label>Department<input name="department" maxlength="80" required value="<?= h($item['department']) ?>"></label>
-                <label>Depot<input name="depot" maxlength="80" required value="<?= h($item['depot']) ?>"></label>
-                <label>Due date<input name="due_date" type="date" required value="<?= h($item['due_date']) ?>"></label>
-                <label>Status<select name="state"><?php foreach (['overdue', 'due soon', 'requested', 'complete'] as $state): ?><option value="<?= h($state) ?>" <?= $item['state'] === $state ? 'selected' : '' ?>><?= h(ucfirst($state)) ?></option><?php endforeach; ?></select></label>
-                <button class="button button-primary bg-blue-700 text-white" type="submit">Save maintenance</button>
-              </form>
+          <section class="maintenance-board" aria-label="Maintenance issue tracking">
+            <article class="panel issue-section issue-section-new">
+              <div class="panel-heading">
+                <div><h2>Newly Reported Issues</h2><p>Awaiting review or action</p></div>
+                <span class="issue-count"><?= h(count($newIssues)) ?></span>
+              </div>
+              <div class="issue-list">
+                <?php if ($newIssues === []): ?><p class="issue-empty">No issues are awaiting review.</p><?php endif; ?>
+                <?php foreach ($newIssues as $issue): ?>
+                <?php $issueDate = gmdate('M j, Y', strtotime($issue['created_at'] . ' UTC')); ?>
+                <button class="issue-card search-item" type="button" data-search="<?= h(strtolower($issue['vehicle_or_trip'] . ' ' . $issue['description'] . ' ' . ($issue['issue_type'] ?? ''))) ?>"
+                  data-issue-id="<?= h($issue['id']) ?>" data-issue-vehicle="<?= h($issue['vehicle_or_trip']) ?>"
+                  data-issue-description="<?= h($issue['description']) ?>" data-issue-type="<?= h($issue['issue_type'] ?? '') ?>"
+                  data-issue-priority="<?= h($issue['priority'] ?? '') ?>" data-issue-created="<?= h($issueDate) ?>"
+                  data-issue-due="<?= h($issue['due_date'] ?? '') ?>" data-issue-notes="<?= h($issue['maintenance_notes']) ?>"
+                  data-issue-status="<?= h($issue['status']) ?>">
+                  <span class="issue-card-copy"><span class="issue-card-top"><strong>Issue #<?= h($issue['id']) ?> · <?= h($issue['vehicle_or_trip']) ?></strong><span class="issue-status status-awaiting">Awaiting Review</span></span>
+                    <span class="issue-description"><?= h($issue['description']) ?></span>
+                    <span class="issue-card-meta">Reported <?= h($issueDate) ?><?= $issue['issue_type'] ? ' · ' . h($issue['issue_type']) : '' ?></span></span>
+                  <?php if ($issue['is_sample']): ?><span class="issue-sample-tag">Mock-up data</span><?php endif; ?>
+                </button>
+                <?php endforeach; ?>
+              </div>
             </article>
-            <?php endforeach; ?>
+            <article class="panel issue-section">
+              <div class="panel-heading">
+                <div><h2>In Progress / Delayed</h2><p>Work currently underway</p></div>
+                <span class="issue-count"><?= h(count($activeIssues)) ?></span>
+              </div>
+              <div class="issue-list">
+                <?php if ($activeIssues === []): ?><p class="issue-empty">No active maintenance issues.</p><?php endif; ?>
+                <?php foreach ($activeIssues as $issue): ?>
+                <?php $issueDate = gmdate('M j, Y', strtotime($issue['created_at'] . ' UTC')); $isDelayed = $issue['status'] === 'delayed'; ?>
+                <button class="issue-card search-item" type="button" data-search="<?= h(strtolower($issue['vehicle_or_trip'] . ' ' . $issue['description'] . ' ' . ($issue['issue_type'] ?? ''))) ?>"
+                  data-issue-id="<?= h($issue['id']) ?>" data-issue-vehicle="<?= h($issue['vehicle_or_trip']) ?>"
+                  data-issue-description="<?= h($issue['description']) ?>" data-issue-type="<?= h($issue['issue_type'] ?? '') ?>"
+                  data-issue-priority="<?= h($issue['priority'] ?? '') ?>" data-issue-created="<?= h($issueDate) ?>"
+                  data-issue-due="<?= h($issue['due_date'] ?? '') ?>" data-issue-notes="<?= h($issue['maintenance_notes']) ?>"
+                  data-issue-status="<?= h($issue['status']) ?>">
+                  <span class="issue-card-copy"><span class="issue-card-top"><strong>Issue #<?= h($issue['id']) ?> · <?= h($issue['vehicle_or_trip']) ?></strong><span class="issue-status <?= $isDelayed ? 'status-delayed' : 'status-progress' ?>"><?= $isDelayed ? 'Delayed' : 'In Progress' ?></span></span>
+                    <span class="issue-description"><?= h($issue['description']) ?></span>
+                    <span class="issue-card-meta">Reported <?= h($issueDate) ?><?= $issue['due_date'] ? ' · Due ' . h(gmdate('M j, Y', strtotime($issue['due_date'] . ' UTC'))) : '' ?></span></span>
+                  <?php if ($issue['is_sample']): ?><span class="issue-sample-tag">Mock-up data</span><?php endif; ?>
+                </button>
+                <?php endforeach; ?>
+              </div>
+            </article>
+            <article class="panel issue-section">
+              <div class="panel-heading">
+                <div><h2>Completed Maintenance</h2><p>Resolved issue reports</p></div>
+                <span class="issue-count"><?= h(count($completedIssues)) ?></span>
+              </div>
+              <div class="issue-list">
+                <?php if ($completedIssues === []): ?><p class="issue-empty">No completed issues yet.</p><?php endif; ?>
+                <?php foreach ($completedIssues as $issue): ?>
+                <?php $issueDate = gmdate('M j, Y', strtotime($issue['created_at'] . ' UTC')); ?>
+                <button class="issue-card search-item" type="button" data-search="<?= h(strtolower($issue['vehicle_or_trip'] . ' ' . $issue['description'] . ' ' . ($issue['issue_type'] ?? ''))) ?>"
+                  data-issue-id="<?= h($issue['id']) ?>" data-issue-vehicle="<?= h($issue['vehicle_or_trip']) ?>"
+                  data-issue-description="<?= h($issue['description']) ?>" data-issue-type="<?= h($issue['issue_type'] ?? '') ?>"
+                  data-issue-priority="<?= h($issue['priority'] ?? '') ?>" data-issue-created="<?= h($issueDate) ?>"
+                  data-issue-due="<?= h($issue['due_date'] ?? '') ?>" data-issue-notes="<?= h($issue['maintenance_notes']) ?>"
+                  data-issue-status="<?= h($issue['status']) ?>">
+                  <span class="issue-card-copy"><span class="issue-card-top"><strong>Issue #<?= h($issue['id']) ?> · <?= h($issue['vehicle_or_trip']) ?></strong><span class="issue-status status-completed">Completed</span></span>
+                    <span class="issue-description"><?= h($issue['description']) ?></span>
+                    <span class="issue-card-meta">Reported <?= h($issueDate) ?><?= $issue['issue_type'] ? ' · ' . h($issue['issue_type']) : '' ?></span></span>
+                  <?php if ($issue['is_sample']): ?><span class="issue-sample-tag">Mock-up data</span><?php endif; ?>
+                </button>
+                <?php endforeach; ?>
+              </div>
+            </article>
           </section>
           <?php elseif ($activeView === 'reports'): ?>
           <section class="performance-section" aria-label="Fleet performance reports">
@@ -703,7 +756,36 @@ $views = [
         <input id="issue-vehicle" name="vehicle" placeholder="e.g. VH-204 or TRIP-2841" required>
         <label for="issue-description">What happened?</label>
         <textarea id="issue-description" name="description" rows="3" placeholder="Add a short description..." required></textarea>
+        <label for="issue-type">Issue type <span>(optional)</span></label>
+        <select id="issue-type" name="issue_type">
+          <option value="">Select a type</option><option>Maintenance</option><option>Mechanical</option><option>Tires</option><option>Electrical</option><option>Safety</option><option>Other</option>
+        </select>
+        <label for="issue-priority">Priority <span>(optional)</span></label>
+        <select id="issue-priority" name="priority">
+          <option value="">Select a priority</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option>
+        </select>
         <button class="button button-primary dialog-done bg-blue-700 text-white" type="submit">Submit report</button>
+      </form>
+    </dialog>
+    <dialog class="detail-dialog issue-detail-dialog" id="issue-detail-dialog">
+      <div class="dialog-top"><span class="dialog-icon">⚙</span><button class="dialog-close" type="button" aria-label="Close dialog">×</button></div>
+      <h2 id="issue-detail-title">Issue details</h2>
+      <div class="issue-detail-meta">
+        <div><span>Vehicle or trip</span><strong id="issue-detail-vehicle"></strong></div>
+        <div><span>Issue type</span><strong id="issue-detail-type"></strong></div>
+        <div><span>Priority</span><strong id="issue-detail-priority"></strong></div>
+        <div><span>Report date</span><strong id="issue-detail-created"></strong></div>
+        <div><span>Description</span><strong id="issue-detail-description"></strong></div>
+      </div>
+      <form id="issue-detail-form">
+        <input type="hidden" name="id">
+        <label for="issue-detail-status">Status</label>
+        <select id="issue-detail-status" name="status"></select>
+        <label for="issue-detail-due">Due date <span>(optional)</span></label>
+        <input id="issue-detail-due" name="due_date" type="date">
+        <label for="issue-detail-notes">Maintenance notes</label>
+        <textarea id="issue-detail-notes" name="maintenance_notes" rows="3" maxlength="3000" placeholder="Add work notes..."></textarea>
+        <button class="button button-primary bg-blue-700 text-white" type="submit">Save issue</button>
       </form>
     </dialog>
     <script src="app.js"></script>
