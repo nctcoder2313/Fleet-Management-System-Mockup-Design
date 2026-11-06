@@ -1,8 +1,9 @@
-# Fleet Accounting Dashboard
+# Fleet Management Dashboard
 
-A PHP-rendered accounting workspace for reviewing fleet expenses, unpaid bills,
-and driver cash advances and liquidations. The interface uses Tailwind CSS,
-vanilla JavaScript, and SQLite.
+A PHP-rendered fleet finance dashboard for reviewing expenses, unpaid bills,
+and driver cash advances and liquidations. Amounts are shown in Philippine
+pesos (PHP), and dashboard dates use the Asia/Manila timezone. The interface
+uses Tailwind CSS, vanilla JavaScript, and SQLite.
 
 ## Requirements
 
@@ -29,8 +30,8 @@ creates `fleet.sqlite` and loads the sample data from `schema.sql`.
 
 The dashboard uses local sample data, including 30 expense records and 18
 driver advances. The project does not implement user authentication, payroll,
-head-admin user management, or connect to live fleet data. Accounting records
-are stored in the local SQLite database. The API only accepts accounting write
+head-admin user management, or connect to live fleet data. Fleet finance records
+are stored in the local SQLite database. The API only accepts finance write
 actions in this workspace.
 
 Typography uses the system sans-serif stack. Tailwind's Play CDN is intended

@@ -69,12 +69,12 @@ document.querySelectorAll("[data-record-form]").forEach((form) => {
         body: JSON.stringify(payload)
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "The accounting record could not be saved.");
+      if (!response.ok) throw new Error(result.error || "The fleet record could not be saved.");
       showToast(result.message);
       window.setTimeout(() => window.location.reload(), 650);
     } catch (error) {
       submitButton.disabled = false;
-      showToast(error.message || "The accounting record could not be saved. Please try again.");
+      showToast(error.message || "The fleet record could not be saved. Please try again.");
     }
   });
 });

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+date_default_timezone_set('Asia/Manila');
+
 $db = require __DIR__ . '/database.php';
 
 $requestedView = $_GET['view'] ?? 'home';
@@ -9,10 +11,10 @@ $activeView = is_string($requestedView) && in_array($requestedView, $validViews,
     ? $requestedView
     : 'home';
 $views = [
-    'home' => ['title' => 'Accounting overview', 'description' => 'A clear view of fleet spending, bills, and driver advances.'],
+    'home' => ['title' => 'Overview', 'description' => 'Key fleet expenses, bills, and driver advances at a glance.'],
     'expenses' => ['title' => 'Expenses', 'description' => 'Review, filter, record, and export fleet expense transactions.'],
     'advances' => ['title' => 'Driver advances', 'description' => 'Track cash issued to drivers and reconcile receipts.'],
-    'financial-reports' => ['title' => 'Financial reports', 'description' => 'Compare fleet spend by month and expense category.'],
+    'financial-reports' => ['title' => 'Reports', 'description' => 'Compare fleet spend by month and expense category.'],
 ];
 $categories = ['Fuel', 'Maintenance', 'Repairs', 'Parts', 'Registration', 'Inspection', 'Insurance', 'Tolls', 'Parking', 'Cleaning', 'Permits', 'Fines', 'Other'];
 $categoryColors = ['Fuel' => '#2563eb', 'Maintenance' => '#16a34a', 'Repairs' => '#dc2626', 'Parts' => '#f59e0b', 'Registration' => '#7c3aed', 'Inspection' => '#0891b2', 'Insurance' => '#64748b', 'Tolls' => '#0f766e', 'Parking' => '#9333ea', 'Cleaning' => '#65a30d', 'Permits' => '#c2410c', 'Fines' => '#be123c', 'Other' => '#94a3b8'];
@@ -181,7 +183,7 @@ if (($_GET['export'] ?? '') === 'csv' && $activeView === 'expenses') {
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="fleet-expenses-' . $periodStart . '-to-' . $periodEnd . '.csv"');
     $output = fopen('php://output', 'w');
-    fputcsv($output, ['Date', 'Vehicle', 'Assigned Driver', 'Category', 'Description', 'Amount', 'Status']);
+    fputcsv($output, ['Date', 'Vehicle', 'Assigned Driver', 'Category', 'Description', 'Amount (PHP)', 'Status']);
     foreach ($expenses as $expense) {
         $description = preg_match('/^[=+@\\-\\t\\r]/', $expense['description']) ? "'" . $expense['description'] : $expense['description'];
         fputcsv($output, [$expense['expense_date'], $expense['vehicle_code'], $expense['driver_name'] ?: 'Unassigned', $expense['category'], $description, number_format($expense['amount_cents'] / 100, 2, '.', ''), $expense['status']]);

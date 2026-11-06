@@ -4,7 +4,7 @@ function h($value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
-$money = static fn ($cents) => '$' . number_format((int) $cents / 100, 2);
+$money = static fn ($centavos) => '₱' . number_format((int) $centavos / 100, 2);
 $expenseLedgerParams = [
   'view' => 'expenses',
   'period' => $period,
@@ -34,21 +34,19 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#dbeafe">
-    <title><?= h($views[$activeView]['title']) ?> | Fleet Accounting</title>
+    <title><?= h($views[$activeView]['title']) ?> | Fleet Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
   </head>
   <body class="text-slate-900">
     <div class="app-shell min-h-screen">
       <aside class="sidebar bg-white" aria-label="Main navigation">
-        <a class="brand" href="?view=home" aria-label="Fleet Accounting overview">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" fill="none"><path d="M5 22.5 15.8 5l4.3 7-5 8.2H26l-3.7 6H5Z" fill="currentColor"/><path d="m18.7 13.2 4.1 6.7h-7.5" stroke="#13251F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span>Fleet <span class="brand-light">Ledger</span></span>
+        <a class="brand" href="?view=home" aria-label="Fleet Management overview">
+          <img class="brand-logo" src="assets/paragon.webp" alt="Paragon Communications Corp">
+          <span class="brand-caption">Fleet Management</span>
         </a>
 
-        <div class="workspace-label">ACCOUNTING WORKSPACE</div>
+        <div class="workspace-label">ACCOUNTING DASHBOARD</div>
         <nav class="nav-list">
           <a class="nav-item <?= $activeView === 'home' ? 'is-active' : '' ?>" href="?view=home" title="Overview" <?= $activeView === 'home' ? 'aria-current="page"' : '' ?>><span class="nav-icon">◫</span>Overview</a>
           <a class="nav-item <?= $activeView === 'expenses' ? 'is-active' : '' ?>" href="?view=expenses" title="Expenses" <?= $activeView === 'expenses' ? 'aria-current="page"' : '' ?>><span class="nav-icon">＄</span>Expenses <span class="nav-count"><?= h($expenseSummary['pending_count'] ?? 0) ?> pending</span></a>
@@ -59,13 +57,13 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
         <div class="sidebar-bottom">
           <div class="help-card">
             <div class="help-icon">?</div>
-            <strong>Accounting workspace</strong>
+            <strong>Accounting</strong>
             <p>Fleet costs, pending bills, and driver liquidations.</p>
-            <a href="mailto:finance@northstarfleet.example">Finance support <span>↗</span></a>
+            <a href="mailto:finance@northstarfleet.example">Accounting support <span>↗</span></a>
           </div>
           <div class="profile-button" aria-label="Accounting profile">
             <span class="avatar avatar-sidebar">AC</span>
-            <span class="profile-copy"><strong>Finance</strong><small>Accounting</small></span>
+            <span class="profile-copy"><strong>Fleet Management</strong><small>Accounting</small></span>
             <span class="profile-more">···</span>
           </div>
         </div>
@@ -73,16 +71,15 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
 
       <main class="main-content">
         <header class="topbar bg-white">
-          <div class="breadcrumb"><strong>Fleet Ledger</strong><span class="crumb-divider">/</span><span><?= h($views[$activeView]['title']) ?></span></div>
+          <div class="breadcrumb"><strong>Accounting Dashboard</strong><span class="crumb-divider">/</span><span><?= h($views[$activeView]['title']) ?></span></div>
           <div class="topbar-actions">
-            <span class="avatar avatar-top" aria-label="Accounting profile">AC</span>
+            <span class="avatar avatar-top" aria-label="Fleet Management profile">FM</span>
           </div>
         </header>
 
         <div class="page-content">
           <section class="page-heading">
             <div>
-              <div class="eyebrow"><span class="live-pulse"></span> ACCOUNTING WORKSPACE</div>
               <h1><?= h($views[$activeView]['title']) ?></h1>
               <p><?= h($views[$activeView]['description']) ?></p>
             </div>
@@ -134,7 +131,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           <?php endif; ?>
           <section class="accounting-chart-grid" aria-label="Expense reports">
             <article class="panel accounting-chart-panel">
-              <div class="panel-heading"><div><h2>Monthly expense trend</h2><p>January–December <?= h($selectedYear) ?></p></div><span class="chart-unit">USD</span></div>
+              <div class="panel-heading"><div><h2>Monthly expense trend</h2><p>January–December <?= h($selectedYear) ?></p></div><span class="chart-unit">PHP</span></div>
               <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" role="img" aria-label="Monthly fleet expenses for <?= h($selectedYear) ?>"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date('F Y', strtotime($trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendItem): ?><span><?= h(date('M', strtotime($trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this year.</p><?php endif; ?>
             </article>
             <article class="panel accounting-chart-panel">
@@ -149,14 +146,14 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             <article class="panel accounting-table-panel">
               <div class="panel-heading"><div><h2>Recent expenses</h2><p>Latest fleet transactions</p></div><a class="text-button" href="?view=expenses">All expenses <span>→</span></a></div>
               <div class="table-scroll"><table class="accounting-table"><thead><tr><th>DATE</th><th>VEHICLE</th><th>CATEGORY</th><th>DESCRIPTION</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
-                <?php foreach ($recentExpenses as $expense): ?><tr><td><?= h(date('M j', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
+                <?php foreach ($recentExpenses as $expense): ?><tr><td><?= h(date('d M', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
                 <?php if ($recentExpenses === []): ?><tr><td class="table-empty" colspan="6">No expenses recorded for this period.</td></tr><?php endif; ?>
               </tbody></table></div>
             </article>
             <article class="panel accounting-table-panel">
               <div class="panel-heading"><div><h2>Driver advances</h2><p><?= h($advanceSummary['open_count'] ?? 0) ?> open liquidations · <?= h($money($advanceSummary['outstanding_cents'])) ?> outstanding</p></div><a class="text-button" href="?view=advances">All advances <span>→</span></a></div>
               <div class="table-scroll"><table class="accounting-table advance-table"><thead><tr><th>DRIVER / VEHICLE</th><th>PURPOSE</th><th>ISSUED</th><th>OUTSTANDING</th><th>STATUS</th></tr></thead><tbody>
-                <?php foreach ($recentAdvances as $advance): ?><tr><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?> · <?= h(date('M j', strtotime($advance['advance_date']))) ?></small></td><td><?= h($advance['purpose']) ?></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td></tr><?php endforeach; ?>
+                <?php foreach ($recentAdvances as $advance): ?><tr><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?> · <?= h(date('d M', strtotime($advance['advance_date']))) ?></small></td><td><?= h($advance['purpose']) ?></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td></tr><?php endforeach; ?>
                 <?php if ($recentAdvances === []): ?><tr><td class="table-empty" colspan="5">No driver advances for this period.</td></tr><?php endif; ?>
               </tbody></table></div>
             </article>
@@ -165,7 +162,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           <section class="panel accounting-table-panel">
             <div class="panel-heading"><div><h2>Expense ledger</h2><p><?= h(count($expenses)) ?> recorded transactions</p></div></div>
             <div class="table-scroll"><table class="accounting-table"><thead><tr><th>DATE</th><th>VEHICLE / DRIVER</th><th>CATEGORY</th><th>DESCRIPTION</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
-              <?php foreach ($expenses as $expense): ?><tr><td><?= h(date('M j, Y', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?> · <?= h($expense['driver_name'] ?: 'Unassigned') ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
+              <?php foreach ($expenses as $expense): ?><tr><td><?= h(date('d M Y', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?> · <?= h($expense['driver_name'] ?: 'Unassigned') ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
               <?php if ($expenses === []): ?><tr><td class="table-empty" colspan="6">No expenses match these filters.</td></tr><?php endif; ?>
             </tbody></table></div>
           </section>
@@ -189,14 +186,14 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           <section class="panel accounting-table-panel">
             <div class="panel-heading"><div><h2>Driver advance register</h2><p><?= h(count($cashAdvances)) ?> records · issued, liquidated, and outstanding by trip</p></div></div>
             <div class="table-scroll"><table class="accounting-table advance-ledger"><thead><tr><th>ISSUED</th><th>DRIVER / VEHICLE</th><th>PURPOSE / NOTES</th><th>AMOUNT</th><th>LIQUIDATED</th><th>BALANCE</th><th>LAST RECEIPT</th><th>STATUS</th><th></th></tr></thead><tbody>
-              <?php foreach ($cashAdvances as $advance): ?><tr><td><?= h(date('M j, Y', strtotime($advance['advance_date']))) ?></td><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?></small></td><td><strong><?= h($advance['purpose']) ?></strong><small><?= h($advance['notes'] ?: 'No notes') ?></small></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['liquidated_cents'])) ?><small><?= $advance['liquidated_at'] ? h(date('M j, Y', strtotime($advance['liquidated_at']))) : 'No receipts yet' ?></small></td><td class="amount-cell"><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><?= h($advance['receipt_reference'] ?: '—') ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td><td><?php if ($advance['status'] !== 'Liquidated'): ?><button class="table-action" type="button" data-liquidate="<?= h($advance['id']) ?>" data-balance="<?= h(number_format(($advance['amount_cents'] - $advance['liquidated_cents']) / 100, 2, '.', '')) ?>" data-driver="<?= h($advance['driver_name']) ?>">Liquidate</button><?php endif; ?></td></tr><?php endforeach; ?>
+              <?php foreach ($cashAdvances as $advance): ?><tr><td><?= h(date('d M Y', strtotime($advance['advance_date']))) ?></td><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?></small></td><td><strong><?= h($advance['purpose']) ?></strong><small><?= h($advance['notes'] ?: 'No notes') ?></small></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['liquidated_cents'])) ?><small><?= $advance['liquidated_at'] ? h(date('d M Y', strtotime($advance['liquidated_at']))) : 'No receipts yet' ?></small></td><td class="amount-cell"><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><?= h($advance['receipt_reference'] ?: '—') ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td><td><?php if ($advance['status'] !== 'Liquidated'): ?><button class="table-action" type="button" data-liquidate="<?= h($advance['id']) ?>" data-balance="<?= h(number_format(($advance['amount_cents'] - $advance['liquidated_cents']) / 100, 2, '.', '')) ?>" data-driver="<?= h($advance['driver_name']) ?>">Liquidate</button><?php endif; ?></td></tr><?php endforeach; ?>
               <?php if ($cashAdvances === []): ?><tr><td class="table-empty" colspan="9">No driver advances match these filters.</td></tr><?php endif; ?>
             </tbody></table></div>
           </section>
           <section class="panel accounting-table-panel liquidation-history-panel">
             <div class="panel-heading"><div><h2>Liquidation history</h2><p><?= h(count($liquidationHistory)) ?> receipt records · each partial submission is kept separately</p></div></div>
             <div class="table-scroll"><table class="accounting-table liquidation-history"><thead><tr><th>RECEIPT DATE</th><th>LIQUIDATED BY</th><th>DRIVER / VEHICLE</th><th>ADVANCE PURPOSE</th><th>AMOUNT SUBMITTED</th><th>RECEIPT REFERENCE</th><th>NOTES</th></tr></thead><tbody>
-              <?php foreach ($liquidationHistory as $liquidation): ?><tr><td><?= h(date('M j, Y', strtotime($liquidation['liquidated_at']))) ?></td><td><strong><?= h($liquidation['liquidated_by']) ?></strong></td><td><strong><?= h($liquidation['driver_name']) ?></strong><small><?= h($liquidation['vehicle_code']) ?></small></td><td><?= h($liquidation['purpose']) ?></td><td class="amount-cell"><?= h($money($liquidation['amount_cents'])) ?></td><td><?= h($liquidation['receipt_reference'] ?: 'No reference') ?></td><td><?= h($liquidation['notes'] ?: '—') ?></td></tr><?php endforeach; ?>
+              <?php foreach ($liquidationHistory as $liquidation): ?><tr><td><?= h(date('d M Y', strtotime($liquidation['liquidated_at']))) ?></td><td><strong><?= h($liquidation['liquidated_by']) ?></strong></td><td><strong><?= h($liquidation['driver_name']) ?></strong><small><?= h($liquidation['vehicle_code']) ?></small></td><td><?= h($liquidation['purpose']) ?></td><td class="amount-cell"><?= h($money($liquidation['amount_cents'])) ?></td><td><?= h($liquidation['receipt_reference'] ?: 'No reference') ?></td><td><?= h($liquidation['notes'] ?: '—') ?></td></tr><?php endforeach; ?>
               <?php if ($liquidationHistory === []): ?><tr><td class="table-empty" colspan="7">No liquidation receipts match these filters.</td></tr><?php endif; ?>
             </tbody></table></div>
           </section>
@@ -268,7 +265,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
                 <?php foreach ($recentActivity as $activity): ?>
                 <div class="activity-item">
                   <span class="activity-marker activity-<?= h($activity['category']) ?>"></span>
-                  <span class="activity-copy"><strong><?= h($activity['message']) ?></strong><small><?= h(date('M j, g:i A', strtotime($activity['occurred_at']))) ?></small></span>
+                  <span class="activity-copy"><strong><?= h($activity['message']) ?></strong><small><?= h(date('d M, g:i A', strtotime($activity['occurred_at']))) ?></small></span>
                 </div>
                 <?php endforeach; ?>
               </div>
@@ -348,7 +345,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
                         $statusLabel . ($vehicle['driver_name'] ? ' with ' . $vehicle['driver_name'] : ''),
                         'Current location: ' . $vehicle['location'],
                         'Assignment: ' . ($vehicle['assignment'] ?: 'Unassigned'),
-                        'Last service: ' . date('M j, Y', strtotime($vehicle['last_service'])),
+                        'Last service: ' . date('d M Y', strtotime($vehicle['last_service'])),
                         'Fuel level: ' . $vehicle['fuel_level'] . '%',
                     ]);
                     $search = strtolower(implode(' ', array_filter($vehicle)));
@@ -358,7 +355,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
                       <td><span class="status-badge <?= h($statusClass) ?>"><i></i><?= h($statusLabel) ?></span></td>
                       <td><?= $driverMarkup ?></td>
                       <td><span class="location-cell"><i></i><?= h($vehicle['assignment'] !== '' ? $vehicle['assignment'] : $vehicle['location']) ?></span><span class="vehicle-type"><?= h($vehicle['location']) ?></span></td>
-                      <td><?= h(date('M j, Y', strtotime($vehicle['last_service']))) ?></td>
+                      <td><?= h(date('d M Y', strtotime($vehicle['last_service']))) ?></td>
                       <td><span class="fuel-level <?= $vehicle['fuel_level'] < 30 ? 'fuel-low' : '' ?>"><?= h($vehicle['fuel_level']) ?>%</span></td>
                       <td><?= h($vehicle['eta'] ?: '—') ?></td>
                       <td><span class="delivery-status <?= $vehicle['eta'] === null ? 'delivery-neutral' : ((int) $vehicle['delay_minutes'] > 0 ? 'delivery-late' : 'delivery-on-time') ?>"><?= $vehicle['eta'] === null ? '—' : ((int) $vehicle['delay_minutes'] > 0 ? 'Delayed' : 'On time') ?></span></td>
@@ -446,7 +443,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
                     <tr>
                       <td><span class="vehicle-name"><?= h($item['vehicle_code']) ?></span><span class="vehicle-type"><?= h($item['depot']) ?></span></td>
                       <td><?= h($item['task']) ?><span class="vehicle-type"><?= h($item['department']) ?></span></td>
-                      <td><?= h(date('M j, Y', strtotime($item['due_date']))) ?></td>
+                      <td><?= h(date('d M Y', strtotime($item['due_date']))) ?></td>
                       <td><span class="maintenance-tag <?= $isOverdue ? 'tag-overdue' : 'tag-soon' ?>"><?= h(ucfirst($item['state'])) ?></span></td>
                       <td><a class="maintenance-action" href="?view=maintenance">Manage</a></td>
                     </tr>
@@ -558,7 +555,6 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           </section>
           <?php elseif ($activeView === 'accounting'): ?>
           <?php
-            $money = static fn ($cents) => '$' . number_format((int) $cents / 100, 2);
             $categoryColors = ['Fuel' => '#2563eb', 'Maintenance' => '#16a34a', 'Parts' => '#f59e0b', 'Tolls' => '#0891b2', 'Insurance' => '#7c3aed', 'Penalties' => '#dc2626', 'Inspection' => '#64748b', 'Other' => '#94a3b8'];
             $trendMax = max(1, ...array_column($expenseTrend, 'total_cents'));
             $trendPoints = [];
@@ -592,8 +588,8 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           </section>
           <section class="accounting-chart-grid" aria-label="Expense reports">
             <article class="panel accounting-chart-panel">
-              <div class="panel-heading"><div><h2>Expense trend</h2><p><?= $dailyTrend ? 'Daily' : 'Monthly' ?> spend · <?= h(date('M Y', strtotime($periodStart))) ?> to <?= h(date('M Y', strtotime($periodEnd))) ?></p></div><span class="chart-unit">USD</span></div>
-              <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" role="img" aria-label="<?= $dailyTrend ? 'Daily' : 'Monthly' ?> fleet expense trend in dollars"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date($dailyTrend ? 'M j, Y' : 'F Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendItem): ?><span><?= h(date($dailyTrend ? 'M j' : 'M Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this period.</p><?php endif; ?>
+              <div class="panel-heading"><div><h2>Expense trend</h2><p><?= $dailyTrend ? 'Daily' : 'Monthly' ?> spend · <?= h(date('M Y', strtotime($periodStart))) ?> to <?= h(date('M Y', strtotime($periodEnd))) ?></p></div><span class="chart-unit">PHP</span></div>
+              <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" role="img" aria-label="<?= $dailyTrend ? 'Daily' : 'Monthly' ?> fleet expense trend in Philippine pesos"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date($dailyTrend ? 'd M Y' : 'F Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendItem): ?><span><?= h(date($dailyTrend ? 'd M' : 'M Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this period.</p><?php endif; ?>
             </article>
             <article class="panel accounting-chart-panel">
               <div class="panel-heading"><div><h2>Spend by category</h2><p>Share of selected-period expenses</p></div></div>
@@ -604,14 +600,14 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             <article class="panel accounting-table-panel">
               <div class="panel-heading"><div><h2>Recent expenses</h2><p>Latest recorded fleet transactions</p></div><span class="count-pill"><?= h(count($recentExpenses)) ?> entries</span></div>
               <div class="table-scroll"><table class="accounting-table"><thead><tr><th>DATE</th><th>VEHICLE / DRIVER</th><th>CATEGORY</th><th>DESCRIPTION</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
-                <?php foreach ($recentExpenses as $expense): ?><tr><td><?= h(date('M j, Y', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?> · <?= h($expense['driver_name'] ?: 'Unassigned') ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
+                <?php foreach ($recentExpenses as $expense): ?><tr><td><?= h(date('d M Y', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?> · <?= h($expense['driver_name'] ?: 'Unassigned') ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
                 <?php if ($recentExpenses === []): ?><tr><td class="table-empty" colspan="6">No expenses recorded for this period.</td></tr><?php endif; ?>
               </tbody></table></div>
             </article>
             <article class="panel accounting-table-panel">
               <div class="panel-heading"><div><h2>Driver advances</h2><p>Cash issued and receipt liquidation status</p></div></div>
               <div class="table-scroll"><table class="accounting-table advance-table"><thead><tr><th>DRIVER / VEHICLE</th><th>ISSUED</th><th>LIQUIDATED</th><th>STATUS</th></tr></thead><tbody>
-                <?php foreach ($cashAdvances as $advance): ?><tr><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?> · <?= h(date('M j', strtotime($advance['advance_date']))) ?></small></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['liquidated_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td></tr><?php endforeach; ?>
+                <?php foreach ($cashAdvances as $advance): ?><tr><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?> · <?= h(date('d M', strtotime($advance['advance_date']))) ?></small></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['liquidated_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td></tr><?php endforeach; ?>
                 <?php if ($cashAdvances === []): ?><tr><td class="table-empty" colspan="4">No driver advances for this period.</td></tr><?php endif; ?>
               </tbody></table></div>
             </article>
@@ -657,7 +653,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             </div>
           </section>
           <?php endif; ?>
-          <footer class="page-footer"><span>Fleet Ledger · Accounting workspace</span><span><i></i>Local accounting records</span></footer>
+          <footer class="page-footer"><span>Fleet Management · Accounting</span><span><i></i>Local fleet records</span></footer>
         </div>
       </main>
     </div>
@@ -675,7 +671,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
         <label class="expense-field">Category<select id="expense-category" name="category" required><?php foreach ($categories as $category): ?><option value="<?= h($category) ?>"><?= h($category) ?></option><?php endforeach; ?></select></label>
         <label class="expense-field">Payment status<select id="expense-status" name="status"><option>Paid</option><option>Pending</option></select></label>
         <label class="expense-field expense-field-wide">Description<input id="expense-description" name="description" maxlength="160" placeholder="Receipt, service, or route expense" required></label>
-        <label class="expense-field expense-field-wide">Amount (USD)<input id="expense-amount" name="amount" type="number" min="0.01" max="10000000" step="0.01" placeholder="0.00" required></label>
+        <label class="expense-field expense-field-wide">Amount (PHP)<input id="expense-amount" name="amount" type="number" min="0.01" max="10000000" step="0.01" placeholder="0.00" required></label>
         <button class="button button-primary expense-save-button" type="submit"><span aria-hidden="true">＋</span> Save expense</button>
       </form>
     </dialog>
@@ -689,7 +685,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
         <label for="advance-driver">Driver</label><select id="advance-driver" name="driver_name" required><?php foreach ($accountingDrivers as $driver): ?><option value="<?= h($driver['name']) ?>"><?= h($driver['name']) ?></option><?php endforeach; ?></select>
         <label for="advance-vehicle">Vehicle</label><select id="advance-vehicle" name="vehicle_code" required><?php foreach ($accountingVehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>"><?= h($vehicle['vehicle_code']) ?> · <?= h($vehicle['make']) ?></option><?php endforeach; ?></select>
         <label for="advance-purpose">Purpose</label><input id="advance-purpose" name="purpose" maxlength="120" placeholder="Fuel, tolls, trip allowance..." required>
-        <label for="advance-amount">Amount (USD)</label><input id="advance-amount" name="amount" type="number" min="0.01" max="10000000" step="0.01" required>
+        <label for="advance-amount">Amount (PHP)</label><input id="advance-amount" name="amount" type="number" min="0.01" max="10000000" step="0.01" required>
         <label for="advance-notes">Notes</label><textarea id="advance-notes" name="notes" rows="2" maxlength="500"></textarea>
         <button class="button button-primary dialog-done bg-blue-700 text-white" type="submit">Save advance</button>
       </form>
@@ -703,7 +699,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
         <input type="hidden" id="liquidation-id" name="id">
         <label for="liquidation-date">Receipt date</label><input id="liquidation-date" name="liquidated_at" type="date" value="<?= h(date('Y-m-d')) ?>" required>
         <label for="liquidated-by">Liquidated by</label><input id="liquidated-by" name="liquidated_by" maxlength="120" placeholder="Name of accounting staff" required>
-        <label for="liquidation-amount">Liquidated amount (USD)</label><input id="liquidation-amount" name="amount" type="number" min="0.01" step="0.01" required>
+        <label for="liquidation-amount">Liquidated amount (PHP)</label><input id="liquidation-amount" name="amount" type="number" min="0.01" step="0.01" required>
         <label for="receipt-reference">Receipt reference</label><input id="receipt-reference" name="receipt_reference" maxlength="80" placeholder="Receipt or voucher number">
         <label for="liquidation-notes">Notes</label><textarea id="liquidation-notes" name="liquidation_notes" rows="2" maxlength="500"></textarea>
         <button class="button button-primary dialog-done bg-blue-700 text-white" type="submit">Save liquidation</button>

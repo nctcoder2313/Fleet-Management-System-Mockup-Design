@@ -31,7 +31,7 @@ if (!is_array($payload)) {
 }
 
 if (!in_array($payload['action'] ?? '', ['record-expense', 'record-advance', 'liquidate-advance'], true)) {
-    respond(404, ['error' => 'That action is not available in the Accounting workspace.']);
+    respond(404, ['error' => 'That action is not available in the finance workspace.']);
 }
 
 try {
