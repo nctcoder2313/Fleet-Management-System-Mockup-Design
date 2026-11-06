@@ -16,6 +16,23 @@ $expenseLedgerParams = [
 $categoryTotal = max(1, array_sum(array_column($expenseCategories, 'total_cents')));
 $categoryOffset = 0;
 $donutStops = [];
+$categoryPercentages = [];
+$percentageUnits = [];
+$percentageRemainders = [];
+$allocatedPercentageUnits = 0;
+foreach ($expenseCategories as $categoryIndex => $categoryItem) {
+  $rawUnits = $categoryItem['total_cents'] / $categoryTotal * 1000;
+  $percentageUnits[$categoryIndex] = (int) floor($rawUnits);
+  $percentageRemainders[$categoryIndex] = $rawUnits - $percentageUnits[$categoryIndex];
+  $allocatedPercentageUnits += $percentageUnits[$categoryIndex];
+}
+arsort($percentageRemainders);
+foreach (array_slice(array_keys($percentageRemainders), 0, 1000 - $allocatedPercentageUnits) as $categoryIndex) {
+  $percentageUnits[$categoryIndex]++;
+}
+foreach ($percentageUnits as $categoryIndex => $units) {
+  $categoryPercentages[$categoryIndex] = $units / 10;
+}
 foreach ($expenseCategories as $categoryItem) {
   $slice = $categoryItem['total_cents'] / $categoryTotal * 100;
   $donutStops[] = $categoryColors[$categoryItem['category']] . ' ' . $categoryOffset . '% ' . ($categoryOffset + $slice) . '%';
@@ -50,6 +67,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
         <nav class="nav-list">
           <a class="nav-item <?= $activeView === 'home' ? 'is-active' : '' ?>" href="?view=home" title="Overview" <?= $activeView === 'home' ? 'aria-current="page"' : '' ?>><span class="nav-icon">◫</span>Overview</a>
           <a class="nav-item <?= $activeView === 'expenses' ? 'is-active' : '' ?>" href="?view=expenses" title="Expenses" <?= $activeView === 'expenses' ? 'aria-current="page"' : '' ?>><span class="nav-icon">＄</span>Expenses <span class="nav-count"><?= h($expenseSummary['pending_count'] ?? 0) ?> pending</span></a>
+          <a class="nav-item <?= $activeView === 'bills' ? 'is-active' : '' ?>" href="?view=bills" title="Bills & Payments" <?= $activeView === 'bills' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▤</span>Bills &amp; Payments <span class="nav-count"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] !== 'Paid'))) ?></span></a>
           <a class="nav-item <?= $activeView === 'advances' ? 'is-active' : '' ?>" href="?view=advances" title="Driver advances · <?= h($advanceSummary['open_count'] ?? 0) ?> open" <?= $activeView === 'advances' ? 'aria-current="page"' : '' ?>><span class="nav-icon">♙</span>Driver Advances <span class="nav-count"><?= h($advanceSummary['open_count'] ?? 0) ?></span></a>
           <a class="nav-item <?= $activeView === 'financial-reports' ? 'is-active' : '' ?>" href="?view=financial-reports" title="Financial reports" <?= $activeView === 'financial-reports' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▥</span>Reports</a>
         </nav>
@@ -86,16 +104,18 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             <div class="heading-actions">
               <?php if (in_array($activeView, ['home', 'expenses'], true)): ?>
               <button class="button button-primary bg-blue-700 text-white" id="open-expense-dialog"><span>＋</span> Record expense</button>
+              <?php elseif ($activeView === 'bills'): ?>
+              <button class="button button-primary bg-blue-700 text-white" id="open-bill-dialog"><span>＋</span> Record bill</button>
               <?php elseif ($activeView === 'advances'): ?>
               <button class="button button-primary bg-blue-700 text-white" id="open-advance-dialog"><span>＋</span> Record advance</button>
               <?php endif; ?>
             </div>
           </section>
 
-          <?php if (in_array($activeView, ['home', 'expenses'], true)): ?>
+          <?php if (in_array($activeView, ['home', 'expenses', 'bills'], true)): ?>
           <form class="accounting-filters" method="get" aria-label="Filter expense records">
             <input type="hidden" name="view" value="<?= h($activeView) ?>">
-            <label>Period<select name="period" id="accounting-period"><option value="month" <?= $period === 'month' ? 'selected' : '' ?>>This month</option><option value="year" <?= $period === 'year' ? 'selected' : '' ?>>Year to date</option><option value="custom" <?= $period === 'custom' ? 'selected' : '' ?>>Custom dates</option></select></label>
+            <label>Period<select name="period" id="accounting-period"><option value="month" <?= $period === 'month' ? 'selected' : '' ?>>This month</option><option value="last-month" <?= $period === 'last-month' ? 'selected' : '' ?>>Last month</option><option value="year" <?= $period === 'year' ? 'selected' : '' ?>>This year</option><option value="custom" <?= $period === 'custom' ? 'selected' : '' ?>>Custom date range</option></select></label>
             <label>Trend year<select name="year"><?php foreach ($yearOptions as $yearOption): ?><option value="<?= h($yearOption) ?>" <?= $selectedYear === $yearOption ? 'selected' : '' ?>><?= h($yearOption) ?></option><?php endforeach; ?></select></label>
             <label class="custom-date-field" <?= $period !== 'custom' ? 'hidden' : '' ?>>From<input type="date" name="from" value="<?= h($periodStart) ?>"></label>
             <label class="custom-date-field" <?= $period !== 'custom' ? 'hidden' : '' ?>>To<input type="date" name="to" value="<?= h($periodEnd) ?>"></label>
@@ -104,39 +124,55 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             <label>Category<select name="category"><option value="">All categories</option><?php foreach ($categories as $category): ?><option value="<?= h($category) ?>" <?= $selectedCategory === $category ? 'selected' : '' ?>><?= h($category) ?></option><?php endforeach; ?></select></label>
             <label>Category group<select name="expense_group"><option value="">All groups</option><option value="maintenance" <?= $selectedExpenseGroup === 'maintenance' ? 'selected' : '' ?>>Maintenance &amp; repairs</option></select></label>
             <label>Payment status<select name="expense_status"><option value="">All statuses</option><?php foreach (['Paid', 'Pending'] as $status): ?><option value="<?= h($status) ?>" <?= $selectedExpenseStatus === $status ? 'selected' : '' ?>><?= h($status) ?></option><?php endforeach; ?></select></label>
+            <?php elseif ($activeView === 'bills'): ?>
+            <label>Category<select name="category"><option value="">All categories</option><?php foreach ($categories as $category): ?><option value="<?= h($category) ?>" <?= $selectedCategory === $category ? 'selected' : '' ?>><?= h($category) ?></option><?php endforeach; ?></select></label>
+            <label>Payment status<select name="bill_status"><option value="">All statuses</option><?php foreach (['Pending', 'Partially Paid', 'Overdue', 'Paid'] as $status): ?><option value="<?= h($status) ?>" <?= $selectedBillStatus === $status ? 'selected' : '' ?>><?= h($status) ?></option><?php endforeach; ?></select></label>
             <?php endif; ?>
+            <?php if (in_array($activeView, ['expenses', 'bills'], true)): ?><label>Search<input type="search" name="search" value="<?= h($search) ?>" placeholder="ID, supplier, vehicle..."></label><?php endif; ?>
             <button class="button filter-submit" type="submit">Apply filters</button>
-            <?php if ($activeView === 'expenses'): ?><a class="button export-button" href="?<?= h(http_build_query(['view' => 'expenses', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'category' => $selectedCategory, 'expense_group' => $selectedExpenseGroup, 'expense_status' => $selectedExpenseStatus, 'export' => 'csv'])) ?>" aria-label="Export filtered expenses as CSV">↓ Export CSV</a><?php endif; ?>
+            <?php if ($activeView === 'expenses'): ?><a class="button export-button" href="?<?= h(http_build_query(['view' => 'expenses', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'category' => $selectedCategory, 'expense_group' => $selectedExpenseGroup, 'expense_status' => $selectedExpenseStatus, 'search' => $search, 'export' => 'csv'])) ?>" aria-label="Export filtered expenses as Excel-compatible CSV">↓ Export for Excel</a><?php endif; ?>
+              <?php if ($activeView === 'bills'): ?><a class="button export-button" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'category' => $selectedCategory, 'bill_status' => $selectedBillStatus, 'search' => $search, 'export' => 'csv'])) ?>">↓ Export for Excel</a><?php endif; ?>
           </form>
+          <?php if ($activeView !== 'bills'): ?>
           <section class="metrics-grid accounting-metrics" aria-label="Financial summary">
-            <a class="metric-card metric-link" href="?<?= h(http_build_query($expenseLedgerParams)) ?>" aria-label="View all fleet expenses for this period"><span class="metric-top"><span class="metric-label">Fleet expenses</span><span class="metric-icon icon-blue">↗</span></span><strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong><span class="metric-foot">View all transactions <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['category' => 'Fuel']))) ?>" aria-label="View all fuel expenses for this period"><span class="metric-top"><span class="metric-label">Fuel costs</span><span class="metric-icon icon-amber">◉</span></span><strong class="metric-value"><?= h($money($expenseSummary['fuel_cents'])) ?></strong><span class="metric-foot">View fuel transactions <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['expense_group' => 'maintenance']))) ?>" aria-label="View maintenance, repairs, parts, and inspection expenses"><span class="metric-top"><span class="metric-label">Maintenance &amp; repairs</span><span class="metric-icon icon-green">⚙</span></span><strong class="metric-value"><?= h($money($expenseSummary['maintenance_cents'])) ?></strong><span class="metric-foot">View service and repair costs <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['expense_status' => 'Pending']))) ?>" aria-label="View pending bills for this period"><span class="metric-top"><span class="metric-label">Pending bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($expenseSummary['pending_cents'])) ?></strong><span class="metric-foot">View unpaid bills <span aria-hidden="true">↗</span></span></a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query($expenseLedgerParams)) ?>" aria-label="View all fleet expenses for this period"><span class="metric-top"><span class="metric-label">Total fleet expenses</span><span class="metric-icon icon-blue">↗</span></span><strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong><span class="metric-foot">Recorded this period <span aria-hidden="true">↗</span></span></a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['category' => 'Fuel']))) ?>" aria-label="View all fuel expenses for this period"><span class="metric-top"><span class="metric-label">Fuel costs</span><span class="metric-icon icon-amber">◉</span></span><strong class="metric-value"><?= h($money($expenseSummary['fuel_cents'])) ?></strong><span class="metric-foot">Gasoline and diesel <span aria-hidden="true">↗</span></span></a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['expense_group' => 'maintenance']))) ?>" aria-label="View maintenance and repair expenses"><span class="metric-top"><span class="metric-label">Maintenance &amp; repairs</span><span class="metric-icon icon-green">⚙</span></span><strong class="metric-value"><?= h($money($expenseSummary['maintenance_cents'])) ?></strong><span class="metric-foot">Service, parts and repairs <span aria-hidden="true">↗</span></span></a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>" aria-label="View outstanding bills"><span class="metric-top"><span class="metric-label">Outstanding bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong><span class="metric-foot"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] === 'Overdue'))) ?> overdue in range <span aria-hidden="true">↗</span></span></a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd])) ?>" aria-label="View payments made this period"><span class="metric-top"><span class="metric-label">Total payments</span><span class="metric-icon icon-violet">✓</span></span><strong class="metric-value"><?= h($money($totalPaymentsCents)) ?></strong><span class="metric-foot">Paid expenses and bill payments <span aria-hidden="true">↗</span></span></a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd])) ?>" aria-label="View outstanding driver advances"><span class="metric-top"><span class="metric-label">Driver advances</span><span class="metric-icon icon-teal">♙</span></span><strong class="metric-value"><?= h($money($advanceSummary['outstanding_cents'])) ?></strong><span class="metric-foot"><?= h($advanceSummary['open_count'] ?? 0) ?> open advances <span aria-hidden="true">↗</span></span></a>
           </section>
+          <?php else: ?>
+          <section class="metrics-grid accounting-metrics" aria-label="Bills and payment summary">
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Outstanding bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong><span class="metric-foot"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] === 'Overdue'))) ?> overdue</span></article>
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Payments this period</span><span class="metric-icon icon-green">✓</span></span><strong class="metric-value"><?= h($money($billPaymentsCents)) ?></strong><span class="metric-foot">Applied to supplier bills</span></article>
+          </section>
+          <?php endif; ?>
           <?php endif; ?>
 
           <?php if (in_array($activeView, ['home', 'financial-reports'], true)): ?>
           <?php if ($activeView === 'financial-reports'): ?>
           <form class="accounting-filters" method="get" aria-label="Filter financial reports">
             <input type="hidden" name="view" value="financial-reports">
-            <label>Period<select name="period" id="accounting-period"><option value="month" <?= $period === 'month' ? 'selected' : '' ?>>This month</option><option value="year" <?= $period === 'year' ? 'selected' : '' ?>>Year to date</option><option value="custom" <?= $period === 'custom' ? 'selected' : '' ?>>Custom dates</option></select></label>
+            <label>Period<select name="period" id="accounting-period"><option value="month" <?= $period === 'month' ? 'selected' : '' ?>>This month</option><option value="last-month" <?= $period === 'last-month' ? 'selected' : '' ?>>Last month</option><option value="year" <?= $period === 'year' ? 'selected' : '' ?>>This year</option><option value="custom" <?= $period === 'custom' ? 'selected' : '' ?>>Custom date range</option></select></label>
             <label>Report year<select name="year" id="report-year"><?php foreach ($yearOptions as $yearOption): ?><option value="<?= h($yearOption) ?>" <?= $selectedYear === $yearOption ? 'selected' : '' ?>><?= h($yearOption) ?></option><?php endforeach; ?></select></label>
             <label class="custom-date-field" <?= $period !== 'custom' ? 'hidden' : '' ?>>From<input type="date" name="from" value="<?= h($periodStart) ?>"></label>
             <label class="custom-date-field" <?= $period !== 'custom' ? 'hidden' : '' ?>>To<input type="date" name="to" value="<?= h($periodEnd) ?>"></label>
             <label>Vehicle<select name="vehicle"><option value="">All vehicles</option><?php foreach ($accountingVehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>" <?= $selectedVehicle === $vehicle['vehicle_code'] ? 'selected' : '' ?>><?= h($vehicle['vehicle_code']) ?> · <?= h($vehicle['make']) ?></option><?php endforeach; ?></select></label>
+            <label>Category<select name="category"><option value="">All expense categories</option><?php foreach ($categories as $category): ?><option value="<?= h($category) ?>" <?= $selectedCategory === $category ? 'selected' : '' ?>><?= h($category) ?></option><?php endforeach; ?></select></label>
             <button class="button filter-submit" type="submit">Apply filters</button>
-            <a class="button export-button" href="?<?= h(http_build_query(['view' => 'expenses', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'export' => 'csv'])) ?>">↓ Export CSV</a>
+            <a class="button export-button" href="?<?= h(http_build_query(['view' => 'financial-reports', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'category' => $selectedCategory, 'export' => 'csv'])) ?>">↓ Export for Excel</a>
+            <button class="button export-button" type="button" data-print>↓ Save as PDF</button>
           </form>
           <?php endif; ?>
           <section class="accounting-chart-grid" aria-label="Expense reports">
             <article class="panel accounting-chart-panel">
-              <div class="panel-heading"><div><h2>Monthly expense trend</h2><p>January–December <?= h($selectedYear) ?></p></div><span class="chart-unit">PHP</span></div>
+              <div class="panel-heading"><div><h2>Monthly expense trend</h2><p>January–<?= h(date('F', mktime(0, 0, 0, $trendMonthCount, 1))) ?> <?= h($selectedYear) ?></p></div><span class="chart-unit">PHP</span></div>
               <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" role="img" aria-label="Monthly fleet expenses for <?= h($selectedYear) ?>"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date('F Y', strtotime($trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendItem): ?><span><?= h(date('M', strtotime($trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this year.</p><?php endif; ?>
             </article>
             <article class="panel accounting-chart-panel">
               <div class="panel-heading"><div><h2>Spend by category</h2><p>Share of selected-period expenses</p></div></div>
-              <?php if ($expenseCategories !== []): ?><div class="category-breakdown"><div class="expense-donut" style="--donut-stops: <?= h(implode(', ', $donutStops)) ?>"><span><?= h($money($categoryTotal)) ?><small>Total</small></span></div><div class="category-legend"><?php foreach ($expenseCategories as $categoryItem): ?><div><i style="--category-color: <?= h($categoryColors[$categoryItem['category']]) ?>"></i><span><?= h($categoryItem['category']) ?></span><strong><?= h(number_format($categoryItem['total_cents'] / $categoryTotal * 100)) ?>%</strong></div><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this period.</p><?php endif; ?>
+              <?php if ($expenseCategories !== []): ?><div class="category-breakdown"><div class="expense-donut" style="--donut-stops: <?= h(implode(', ', $donutStops)) ?>"><span><?= h($money($categoryTotal)) ?><small>Total</small></span></div><div class="category-legend"><?php foreach ($expenseCategories as $categoryIndex => $categoryItem): ?><div><i style="--category-color: <?= h($categoryColors[$categoryItem['category']] ?? '#94a3b8') ?>"></i><span><?= h($categoryItem['category']) ?></span><strong><?= h(number_format($categoryPercentages[$categoryIndex], 1)) ?>%</strong><em><?= h($money($categoryItem['total_cents'])) ?></em></div><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this period.</p><?php endif; ?>
             </article>
           </section>
           <?php endif; ?>
@@ -145,15 +181,15 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           <section class="accounting-table-grid">
             <article class="panel accounting-table-panel">
               <div class="panel-heading"><div><h2>Recent expenses</h2><p>Latest fleet transactions</p></div><a class="text-button" href="?view=expenses">All expenses <span>→</span></a></div>
-              <div class="table-scroll"><table class="accounting-table"><thead><tr><th>DATE</th><th>VEHICLE</th><th>CATEGORY</th><th>DESCRIPTION</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
-                <?php foreach ($recentExpenses as $expense): ?><tr><td><?= h(date('d M', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
-                <?php if ($recentExpenses === []): ?><tr><td class="table-empty" colspan="6">No expenses recorded for this period.</td></tr><?php endif; ?>
+              <div class="table-scroll"><table class="accounting-table"><thead><tr><th>TRANSACTION</th><th>DATE</th><th>VEHICLE</th><th>CATEGORY</th><th>DESCRIPTION</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
+                <?php foreach ($recentExpenses as $expense): ?><tr><td>EXP-<?= h(str_pad((string) $expense['id'], 5, '0', STR_PAD_LEFT)) ?></td><td><?= h(date('d M', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
+                <?php if ($recentExpenses === []): ?><tr><td class="table-empty" colspan="7">No expenses recorded for this period.</td></tr><?php endif; ?>
               </tbody></table></div>
             </article>
             <article class="panel accounting-table-panel">
-              <div class="panel-heading"><div><h2>Driver advances</h2><p><?= h($advanceSummary['open_count'] ?? 0) ?> open liquidations · <?= h($money($advanceSummary['outstanding_cents'])) ?> outstanding</p></div><a class="text-button" href="?view=advances">All advances <span>→</span></a></div>
+              <div class="panel-heading"><div><h2>Driver advances</h2><p><?= h($advanceSummary['open_count'] ?? 0) ?> open · <?= h($advanceSummary['submitted_count'] ?? 0) ?> pending review · <?= h($money($advanceSummary['outstanding_cents'])) ?> outstanding</p></div><a class="text-button" href="?view=advances">All advances <span>→</span></a></div>
               <div class="table-scroll"><table class="accounting-table advance-table"><thead><tr><th>DRIVER / VEHICLE</th><th>PURPOSE</th><th>ISSUED</th><th>OUTSTANDING</th><th>STATUS</th></tr></thead><tbody>
-                <?php foreach ($recentAdvances as $advance): ?><tr><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?> · <?= h(date('d M', strtotime($advance['advance_date']))) ?></small></td><td><?= h($advance['purpose']) ?></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td></tr><?php endforeach; ?>
+                <?php foreach ($recentAdvances as $advance): ?><tr><td><strong><?= h($advance['driver_name']) ?></strong><small>ADV-<?= h(str_pad((string) $advance['id'], 4, '0', STR_PAD_LEFT)) ?> · <?= h($advance['vehicle_code']) ?> · <?= h(date('d M', strtotime($advance['advance_date']))) ?></small></td><td><?= h($advance['purpose']) ?></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><span class="expense-status status-<?= h(strtolower(str_replace(' ', '-', $advance['status']))) ?>"><?= h($advance['status']) ?></span></td></tr><?php endforeach; ?>
                 <?php if ($recentAdvances === []): ?><tr><td class="table-empty" colspan="5">No driver advances for this period.</td></tr><?php endif; ?>
               </tbody></table></div>
             </article>
@@ -161,20 +197,28 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           <?php elseif ($activeView === 'expenses'): ?>
           <section class="panel accounting-table-panel">
             <div class="panel-heading"><div><h2>Expense ledger</h2><p><?= h(count($expenses)) ?> recorded transactions</p></div></div>
-            <div class="table-scroll"><table class="accounting-table"><thead><tr><th>DATE</th><th>VEHICLE / DRIVER</th><th>CATEGORY</th><th>DESCRIPTION</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>
-              <?php foreach ($expenses as $expense): ?><tr><td><?= h(date('d M Y', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?> · <?= h($expense['driver_name'] ?: 'Unassigned') ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td></tr><?php endforeach; ?>
-              <?php if ($expenses === []): ?><tr><td class="table-empty" colspan="6">No expenses match these filters.</td></tr><?php endif; ?>
+            <div class="table-scroll"><table class="accounting-table"><thead><tr><th>EXPENSE ID</th><th>DATE</th><th>VEHICLE</th><th>CATEGORY</th><th>DESCRIPTION</th><th>AMOUNT</th><th>RECORDED BY</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>
+              <?php foreach ($expenses as $expense): ?><tr><td>EXP-<?= h(str_pad((string) $expense['id'], 5, '0', STR_PAD_LEFT)) ?></td><td><?= h(date('d M Y', strtotime($expense['expense_date']))) ?></td><td><strong><?= h($expense['vehicle_code']) ?></strong><small><?= h($expense['make']) ?> · <?= h($expense['driver_name'] ?: 'Unassigned') ?></small></td><td><?= h($expense['category']) ?></td><td><?= h($expense['description']) ?></td><td class="amount-cell"><?= h($money($expense['amount_cents'])) ?></td><td><?= h($expense['recorded_by']) ?></td><td><span class="expense-status status-<?= strtolower(h($expense['status'])) ?>"><?= h($expense['status']) ?></span></td><td class="action-cell"><button class="table-action" type="button" data-expense-detail data-id="<?= h($expense['id']) ?>" data-date="<?= h($expense['expense_date']) ?>" data-vehicle="<?= h($expense['vehicle_code']) ?>" data-category="<?= h($expense['category']) ?>" data-status="<?= h($expense['status']) ?>" data-description="<?= h($expense['description']) ?>" data-amount="<?= h(number_format($expense['amount_cents'] / 100, 2, '.', '')) ?>" data-recorded-by="<?= h($expense['recorded_by']) ?>" data-has-receipt="<?= h($expense['has_receipt']) ?>">Details</button><?php if (!$expense['source_bill_id']): ?><button class="table-action" type="button" data-edit-expense="<?= h($expense['id']) ?>" data-date="<?= h($expense['expense_date']) ?>" data-vehicle="<?= h($expense['vehicle_code']) ?>" data-category="<?= h($expense['category']) ?>" data-status="<?= h($expense['status']) ?>" data-description="<?= h($expense['description']) ?>" data-amount="<?= h(number_format($expense['amount_cents'] / 100, 2, '.', '')) ?>" data-recorded-by="<?= h($expense['recorded_by']) ?>">Edit</button><?php else: ?><a class="table-action" href="?view=bills">Bill</a><?php endif; ?><?php if ($expense['has_receipt']): ?> <a class="table-action" href="?attachment=expense&amp;id=<?= h($expense['id']) ?>" target="_blank" rel="noopener">Receipt</a><?php endif; ?></td></tr><?php endforeach; ?>
+              <?php if ($expenses === []): ?><tr><td class="table-empty" colspan="9">No expenses match these filters.</td></tr><?php endif; ?>
+            </tbody></table></div>
+          </section>
+          <?php elseif ($activeView === 'bills'): ?>
+          <section class="panel accounting-table-panel">
+            <div class="panel-heading"><div><h2>Supplier bills</h2><p><?= h(count($bills)) ?> invoices · bill expenses are recorded once, and payments only reduce the balance</p></div><button class="button export-button" type="button" data-print>Print / Save as PDF</button></div>
+            <div class="table-scroll"><table class="accounting-table bills-table"><thead><tr><th>BILL ID</th><th>SUPPLIER</th><th>DESCRIPTION</th><th>AMOUNT</th><th>PAID</th><th>REMAINING</th><th>DUE DATE</th><th>PAYMENT STATUS</th><th>ACTIONS</th></tr></thead><tbody>
+              <?php foreach ($bills as $bill): ?><tr><td>BILL-<?= h(str_pad((string) $bill['id'], 4, '0', STR_PAD_LEFT)) ?></td><td><strong><?= h($bill['supplier']) ?></strong><small><?= h($bill['vehicle_code']) ?> · <?= h($bill['category']) ?></small></td><td><?= h($bill['description']) ?></td><td><?= h($money($bill['amount_cents'])) ?></td><td><?= h($money($bill['paid_cents'])) ?></td><td class="amount-cell"><?= h($money($bill['balance_cents'])) ?></td><td><?= h(date('d M Y', strtotime($bill['due_date']))) ?></td><td><span class="expense-status status-<?= h(strtolower(str_replace(' ', '-', $bill['payment_status']))) ?>"><?= h($bill['payment_status']) ?></span></td><td class="action-cell"><button class="table-action" type="button" data-edit-bill="<?= h($bill['id']) ?>" data-supplier="<?= h($bill['supplier']) ?>" data-description="<?= h($bill['description']) ?>" data-category="<?= h($bill['category']) ?>" data-vehicle="<?= h($bill['vehicle_code']) ?>" data-bill-date="<?= h($bill['bill_date']) ?>" data-due-date="<?= h($bill['due_date']) ?>" data-amount="<?= h(number_format($bill['amount_cents'] / 100, 2, '.', '')) ?>" data-has-payments="<?= (int) $bill['paid_cents'] > 0 ? '1' : '0' ?>">Edit</button><?php if ($bill['invoice_name']): ?><a class="table-action" href="?attachment=bill&amp;id=<?= h($bill['id']) ?>" target="_blank" rel="noopener">Invoice</a><?php endif; ?><?php if ((int) $bill['balance_cents'] > 0): ?> <button class="table-action" type="button" data-pay-bill="<?= h($bill['id']) ?>" data-balance="<?= h(number_format($bill['balance_cents'] / 100, 2, '.', '')) ?>" data-supplier="<?= h($bill['supplier']) ?>">Record payment</button><?php endif; ?><details class="bill-payment-details"><summary>History (<?= h(count($billPaymentsById[$bill['id']] ?? [])) ?>)</summary><?php foreach ($billPaymentsById[$bill['id']] ?? [] as $payment): ?><p><?= h(date('d M Y', strtotime($payment['payment_date']))) ?> · <?= h($money($payment['amount_cents'])) ?> · <?= h($payment['reference'] ?: 'No reference') ?></p><?php endforeach; ?></details></td></tr><?php endforeach; ?>
+              <?php if ($bills === []): ?><tr><td class="table-empty" colspan="9">No bills match these filters.</td></tr><?php endif; ?>
             </tbody></table></div>
           </section>
           <?php elseif ($activeView === 'advances'): ?>
           <form class="accounting-filters" method="get" aria-label="Filter driver advances">
             <input type="hidden" name="view" value="advances">
-            <label>Period<select name="period" id="accounting-period"><option value="month" <?= $period === 'month' ? 'selected' : '' ?>>This month</option><option value="year" <?= $period === 'year' ? 'selected' : '' ?>>Year to date</option><option value="custom" <?= $period === 'custom' ? 'selected' : '' ?>>Custom dates</option></select></label>
+            <label>Period<select name="period" id="accounting-period"><option value="month" <?= $period === 'month' ? 'selected' : '' ?>>This month</option><option value="last-month" <?= $period === 'last-month' ? 'selected' : '' ?>>Last month</option><option value="year" <?= $period === 'year' ? 'selected' : '' ?>>This year</option><option value="custom" <?= $period === 'custom' ? 'selected' : '' ?>>Custom date range</option></select></label>
             <label class="custom-date-field" <?= $period !== 'custom' ? 'hidden' : '' ?>>From<input type="date" name="from" value="<?= h($periodStart) ?>"></label>
             <label class="custom-date-field" <?= $period !== 'custom' ? 'hidden' : '' ?>>To<input type="date" name="to" value="<?= h($periodEnd) ?>"></label>
             <label>Driver<select name="driver"><option value="">All drivers</option><?php foreach ($accountingDrivers as $driver): ?><option value="<?= h($driver['name']) ?>" <?= $selectedDriver === $driver['name'] ? 'selected' : '' ?>><?= h($driver['name']) ?></option><?php endforeach; ?></select></label>
             <label>Vehicle<select name="vehicle"><option value="">All vehicles</option><?php foreach ($accountingVehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>" <?= $selectedVehicle === $vehicle['vehicle_code'] ? 'selected' : '' ?>><?= h($vehicle['vehicle_code']) ?></option><?php endforeach; ?></select></label>
-            <label>Status<select name="advance_status"><option value="">All statuses</option><?php foreach (['Pending', 'Partial', 'Liquidated'] as $status): ?><option value="<?= h($status) ?>" <?= $selectedAdvanceStatus === $status ? 'selected' : '' ?>><?= h($status) ?></option><?php endforeach; ?></select></label>
+            <label>Status<select name="advance_status"><option value="">All statuses</option><?php foreach (['Pending Liquidation', 'Submitted for Review', 'Approved', 'Rejected', 'Fully Liquidated'] as $status): ?><option value="<?= h($status) ?>" <?= $selectedAdvanceStatus === $status ? 'selected' : '' ?>><?= h($status) ?></option><?php endforeach; ?></select></label>
             <button class="button filter-submit" type="submit">Apply filters</button>
           </form>
           <section class="metrics-grid accounting-metrics" aria-label="Driver advance summary">
@@ -183,24 +227,38 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             <article class="metric-card"><span class="metric-top"><span class="metric-label">Outstanding</span><span class="metric-icon icon-amber">◷</span></span><strong class="metric-value"><?= h($money($advanceSummary['outstanding_cents'])) ?></strong><span class="metric-foot">Awaiting liquidation</span></article>
             <article class="metric-card"><span class="metric-top"><span class="metric-label">Open records</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($advanceSummary['open_count'] ?? 0) ?></strong><span class="metric-foot">Need receipt follow-up</span></article>
           </section>
+          <section class="panel accounting-table-panel liquidation-history-panel">
+            <div class="panel-heading"><div><h2>Liquidations pending review</h2><p><?= h(count($pendingLiquidations)) ?> submissions awaiting approval</p></div></div>
+            <div class="table-scroll"><table class="accounting-table"><thead><tr><th>RECEIPT DATE</th><th>DRIVER / VEHICLE</th><th>ADVANCE</th><th>AMOUNT</th><th>RECEIPT</th><th>NOTES</th><th>REVIEW</th></tr></thead><tbody>
+              <?php foreach ($pendingLiquidations as $submission): ?><tr><td><?= h(date('d M Y', strtotime($submission['liquidated_at']))) ?></td><td><strong><?= h($submission['driver_name']) ?></strong><small><?= h($submission['vehicle_code']) ?></small></td><td><?= h($submission['purpose']) ?></td><td class="amount-cell"><?= h($money($submission['amount_cents'])) ?></td><td><?= h($submission['receipt_reference'] ?: '—') ?><?php if ($submission['receipt_name']): ?><small><a href="?attachment=liquidation&amp;id=<?= h($submission['id']) ?>" target="_blank" rel="noopener">View receipt</a></small><?php endif; ?></td><td><?= h($submission['notes'] ?: '—') ?></td><td class="action-cell"><button class="table-action" type="button" data-review-liquidation="<?= h($submission['id']) ?>" data-review="approve">Approve</button> <button class="table-action danger-action" type="button" data-review-liquidation="<?= h($submission['id']) ?>" data-review="reject">Reject</button></td></tr><?php endforeach; ?>
+              <?php if ($pendingLiquidations === []): ?><tr><td class="table-empty" colspan="7">No liquidation submissions are awaiting review.</td></tr><?php endif; ?>
+            </tbody></table></div>
+          </section>
           <section class="panel accounting-table-panel">
             <div class="panel-heading"><div><h2>Driver advance register</h2><p><?= h(count($cashAdvances)) ?> records · issued, liquidated, and outstanding by trip</p></div></div>
-            <div class="table-scroll"><table class="accounting-table advance-ledger"><thead><tr><th>ISSUED</th><th>DRIVER / VEHICLE</th><th>PURPOSE / NOTES</th><th>AMOUNT</th><th>LIQUIDATED</th><th>BALANCE</th><th>LAST RECEIPT</th><th>STATUS</th><th></th></tr></thead><tbody>
-              <?php foreach ($cashAdvances as $advance): ?><tr><td><?= h(date('d M Y', strtotime($advance['advance_date']))) ?></td><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?></small></td><td><strong><?= h($advance['purpose']) ?></strong><small><?= h($advance['notes'] ?: 'No notes') ?></small></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['liquidated_cents'])) ?><small><?= $advance['liquidated_at'] ? h(date('d M Y', strtotime($advance['liquidated_at']))) : 'No receipts yet' ?></small></td><td class="amount-cell"><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><?= h($advance['receipt_reference'] ?: '—') ?></td><td><span class="expense-status status-<?= strtolower(h($advance['status'])) ?>"><?= h($advance['status']) ?></span></td><td><?php if ($advance['status'] !== 'Liquidated'): ?><button class="table-action" type="button" data-liquidate="<?= h($advance['id']) ?>" data-balance="<?= h(number_format(($advance['amount_cents'] - $advance['liquidated_cents']) / 100, 2, '.', '')) ?>" data-driver="<?= h($advance['driver_name']) ?>">Liquidate</button><?php endif; ?></td></tr><?php endforeach; ?>
-              <?php if ($cashAdvances === []): ?><tr><td class="table-empty" colspan="9">No driver advances match these filters.</td></tr><?php endif; ?>
+            <div class="table-scroll"><table class="accounting-table advance-ledger"><thead><tr><th>ADVANCE ID</th><th>ISSUED</th><th>DRIVER / VEHICLE</th><th>PURPOSE / NOTES</th><th>RELEASED</th><th>APPROVED</th><th>SUBMITTED</th><th>BALANCE</th><th>LAST RECEIPT</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>
+              <?php foreach ($cashAdvances as $advance): ?><tr><td>ADV-<?= h(str_pad((string) $advance['id'], 4, '0', STR_PAD_LEFT)) ?></td><td><?= h(date('d M Y', strtotime($advance['advance_date']))) ?></td><td><strong><?= h($advance['driver_name']) ?></strong><small><?= h($advance['vehicle_code']) ?></small></td><td><strong><?= h($advance['purpose']) ?></strong><small><?= h($advance['notes'] ?: 'No notes') ?></small></td><td><?= h($money($advance['amount_cents'])) ?></td><td><?= h($money($advance['liquidated_cents'])) ?></td><td><?= h($money($advance['submitted_cents'])) ?></td><td class="amount-cell"><?= h($money($advance['amount_cents'] - $advance['liquidated_cents'])) ?></td><td><?= h($advance['receipt_reference'] ?: '—') ?></td><td><span class="expense-status status-<?= h(strtolower(str_replace(' ', '-', $advance['status']))) ?>"><?= h($advance['status']) ?></span></td><td><?php if ((int) $advance['amount_cents'] > (int) $advance['liquidated_cents'] + (int) $advance['submitted_cents']): ?><button class="table-action" type="button" data-liquidate="<?= h($advance['id']) ?>" data-balance="<?= h(number_format(($advance['amount_cents'] - $advance['liquidated_cents'] - $advance['submitted_cents']) / 100, 2, '.', '')) ?>" data-driver="<?= h($advance['driver_name']) ?>">Submit receipts</button><?php endif; ?></td></tr><?php endforeach; ?>
+              <?php if ($cashAdvances === []): ?><tr><td class="table-empty" colspan="11">No driver advances match these filters.</td></tr><?php endif; ?>
             </tbody></table></div>
           </section>
           <section class="panel accounting-table-panel liquidation-history-panel">
             <div class="panel-heading"><div><h2>Liquidation history</h2><p><?= h(count($liquidationHistory)) ?> receipt records · each partial submission is kept separately</p></div></div>
-            <div class="table-scroll"><table class="accounting-table liquidation-history"><thead><tr><th>RECEIPT DATE</th><th>LIQUIDATED BY</th><th>DRIVER / VEHICLE</th><th>ADVANCE PURPOSE</th><th>AMOUNT SUBMITTED</th><th>RECEIPT REFERENCE</th><th>NOTES</th></tr></thead><tbody>
-              <?php foreach ($liquidationHistory as $liquidation): ?><tr><td><?= h(date('d M Y', strtotime($liquidation['liquidated_at']))) ?></td><td><strong><?= h($liquidation['liquidated_by']) ?></strong></td><td><strong><?= h($liquidation['driver_name']) ?></strong><small><?= h($liquidation['vehicle_code']) ?></small></td><td><?= h($liquidation['purpose']) ?></td><td class="amount-cell"><?= h($money($liquidation['amount_cents'])) ?></td><td><?= h($liquidation['receipt_reference'] ?: 'No reference') ?></td><td><?= h($liquidation['notes'] ?: '—') ?></td></tr><?php endforeach; ?>
-              <?php if ($liquidationHistory === []): ?><tr><td class="table-empty" colspan="7">No liquidation receipts match these filters.</td></tr><?php endif; ?>
+            <div class="table-scroll"><table class="accounting-table liquidation-history"><thead><tr><th>RECEIPT DATE</th><th>LIQUIDATED BY</th><th>DRIVER / VEHICLE</th><th>ADVANCE PURPOSE</th><th>AMOUNT SUBMITTED</th><th>STATUS</th><th>RECEIPT</th><th>NOTES</th></tr></thead><tbody>
+              <?php foreach ($liquidationHistory as $liquidation): ?><tr><td><?= h(date('d M Y', strtotime($liquidation['liquidated_at']))) ?></td><td><strong><?= h($liquidation['liquidated_by']) ?></strong></td><td><strong><?= h($liquidation['driver_name']) ?></strong><small><?= h($liquidation['vehicle_code']) ?></small></td><td><?= h($liquidation['purpose']) ?></td><td class="amount-cell"><?= h($money($liquidation['amount_cents'])) ?></td><td><span class="expense-status status-<?= h(strtolower($liquidation['status'])) ?>"><?= h($liquidation['status']) ?></span></td><td><?php if ($liquidation['receipt_name']): ?><a href="?attachment=liquidation&amp;id=<?= h($liquidation['id']) ?>" target="_blank" rel="noopener"><?= h($liquidation['receipt_name']) ?></a><?php else: ?><?= h($liquidation['receipt_reference'] ?: '—') ?><?php endif; ?></td><td><?= h($liquidation['notes'] ?: '—') ?></td></tr><?php endforeach; ?>
+              <?php if ($liquidationHistory === []): ?><tr><td class="table-empty" colspan="8">No liquidation receipts match these filters.</td></tr><?php endif; ?>
             </tbody></table></div>
           </section>
           <?php elseif ($activeView === 'financial-reports'): ?>
           <section class="metrics-grid accounting-metrics" aria-label="Report totals">
             <article class="metric-card"><span class="metric-top"><span class="metric-label">Total expenses</span><span class="metric-icon icon-blue">↗</span></span><strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong><span class="metric-foot">Selected period</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Pending payment</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($expenseSummary['pending_cents'])) ?></strong><span class="metric-foot"><?= h($expenseSummary['pending_count'] ?? 0) ?> unpaid records</span></article>
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Outstanding bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong><span class="metric-foot">Includes unpaid expenses</span></article>
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Payments</span><span class="metric-icon icon-green">✓</span></span><strong class="metric-value"><?= h($money($totalPaymentsCents)) ?></strong><span class="metric-foot">Paid expenses and bill payments</span></article>
+          </section>
+          <section class="report-shortcuts" aria-label="Other accounting reports">
+            <a class="button export-button" href="?<?= h(http_build_query(['view' => 'expenses', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'category' => 'Fuel'])) ?>">Fuel expense report</a>
+            <a class="button export-button" href="?<?= h(http_build_query(['view' => 'expenses', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'expense_group' => 'maintenance'])) ?>">Maintenance &amp; repairs</a>
+            <a class="button export-button" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'bill_status' => 'Overdue'])) ?>">Outstanding bills</a>
+            <a class="button export-button" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>">Driver advances</a>
           </section>
           <?php endif; ?>
 
@@ -663,16 +721,66 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
       <div class="dialog-top"><span class="dialog-icon">＋</span><button class="dialog-close" type="button" aria-label="Close dialog">×</button></div>
       <h2>Record fleet expense</h2>
       <p class="dialog-intro">Log a vehicle cost and its payment status.</p>
-      <form id="expense-form" class="expense-form" data-record-form>
+      <form id="expense-form" class="expense-form" data-record-form enctype="multipart/form-data">
         <input type="hidden" name="action" value="record-expense">
+      <input type="hidden" name="id" value="">
         <label class="expense-field">Date<input id="expense-date" name="expense_date" type="date" value="<?= h(date('Y-m-d')) ?>" required></label>
         <label class="expense-field">Vehicle<select id="expense-vehicle" name="vehicle_code" required><?php foreach ($accountingVehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>" data-driver="<?= h($vehicle['driver_name'] ?? '') ?>"><?= h($vehicle['vehicle_code']) ?> · <?= h($vehicle['make']) ?></option><?php endforeach; ?></select></label>
         <div class="expense-driver-preview"><span aria-hidden="true">♙</span><div><small>ASSIGNED DRIVER</small><strong id="expense-assigned-driver">Unassigned</strong></div><i>Saved with this expense</i></div>
         <label class="expense-field">Category<select id="expense-category" name="category" required><?php foreach ($categories as $category): ?><option value="<?= h($category) ?>"><?= h($category) ?></option><?php endforeach; ?></select></label>
         <label class="expense-field">Payment status<select id="expense-status" name="status"><option>Paid</option><option>Pending</option></select></label>
+        <label class="expense-field">Recorded by<input id="expense-recorded-by" name="recorded_by" maxlength="120" value="Accounting team" required></label>
         <label class="expense-field expense-field-wide">Description<input id="expense-description" name="description" maxlength="160" placeholder="Receipt, service, or route expense" required></label>
         <label class="expense-field expense-field-wide">Amount (PHP)<input id="expense-amount" name="amount" type="number" min="0.01" max="10000000" step="0.01" placeholder="0.00" required></label>
+        <label class="expense-field expense-field-wide">Receipt or supporting document<input id="expense-receipt" name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"></label>
         <button class="button button-primary expense-save-button" type="submit"><span aria-hidden="true">＋</span> Save expense</button>
+      </form>
+    </dialog>
+    <dialog class="detail-dialog expense-dialog" id="expense-details-dialog">
+      <div class="dialog-top"><span class="dialog-icon">↗</span><button class="dialog-close" type="button" aria-label="Close dialog">×</button></div>
+      <h2>Expense details</h2>
+      <div class="expense-details-content">
+        <p><strong>Expense ID</strong><span id="expense-detail-id"></span></p>
+        <p><strong>Date</strong><span id="expense-detail-date"></span></p>
+        <p><strong>Vehicle</strong><span id="expense-detail-vehicle"></span></p>
+        <p><strong>Category</strong><span id="expense-detail-category"></span></p>
+        <p><strong>Description</strong><span id="expense-detail-description"></span></p>
+        <p><strong>Amount</strong><span id="expense-detail-amount"></span></p>
+        <p><strong>Recorded by</strong><span id="expense-detail-recorder"></span></p>
+        <p><strong>Status</strong><span id="expense-detail-status"></span></p>
+        <a id="expense-detail-receipt" class="button export-button" hidden target="_blank" rel="noopener">View receipt</a>
+      </div>
+    </dialog>
+    <dialog class="detail-dialog expense-dialog" id="bill-dialog">
+      <div class="dialog-top"><span class="dialog-icon">＋</span><button class="dialog-close" type="button" aria-label="Close dialog">×</button></div>
+      <h2 id="bill-dialog-title">Record supplier bill</h2>
+      <p class="dialog-intro">The bill is recorded as one expense. Payments only reduce its balance.</p>
+      <form id="bill-form" class="expense-form" data-record-form enctype="multipart/form-data">
+        <input type="hidden" name="action" value="record-bill">
+        <input type="hidden" name="id" value="">
+        <label class="expense-field">Supplier<input name="supplier" maxlength="120" required></label>
+        <label class="expense-field">Vehicle<select name="vehicle_code" required><?php foreach ($accountingVehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>"><?= h($vehicle['vehicle_code']) ?> · <?= h($vehicle['make']) ?></option><?php endforeach; ?></select></label>
+        <label class="expense-field">Category<select name="category" required><?php foreach ($categories as $category): ?><option value="<?= h($category) ?>"><?= h($category) ?></option><?php endforeach; ?></select></label>
+        <label class="expense-field">Bill date<input name="bill_date" type="date" value="<?= h(date('Y-m-d')) ?>" required></label>
+        <label class="expense-field">Due date<input name="due_date" type="date" value="<?= h(date('Y-m-d')) ?>" required></label>
+        <label class="expense-field">Amount (PHP)<input name="amount" type="number" min="0.01" max="10000000" step="0.01" required></label>
+        <label class="expense-field expense-field-wide">Description<input name="description" maxlength="160" required></label>
+        <label class="expense-field expense-field-wide">Invoice (PDF, JPEG, PNG, WebP; max 5 MB)<input name="invoice" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"></label>
+        <button class="button button-primary expense-save-button" type="submit">Save bill</button>
+      </form>
+    </dialog>
+    <dialog class="detail-dialog issue-dialog expense-dialog" id="bill-payment-dialog">
+      <div class="dialog-top"><span class="dialog-icon">₱</span><button class="dialog-close" type="button" aria-label="Close dialog">×</button></div>
+      <h2>Record bill payment</h2>
+      <p class="dialog-intro">Apply a payment to <strong id="bill-payment-supplier"></strong>. Remaining balance: <strong id="bill-payment-balance"></strong>.</p>
+      <form id="bill-payment-form" data-record-form>
+        <input type="hidden" name="action" value="record-bill-payment">
+        <input type="hidden" name="id">
+        <label for="bill-payment-date">Payment date</label><input id="bill-payment-date" name="payment_date" type="date" value="<?= h(date('Y-m-d')) ?>" required>
+        <label for="bill-payment-amount">Payment amount (PHP)</label><input id="bill-payment-amount" name="amount" type="number" min="0.01" step="0.01" required>
+        <label for="bill-payment-reference">Reference</label><input id="bill-payment-reference" name="reference" maxlength="100">
+        <label for="bill-payment-notes">Notes</label><textarea id="bill-payment-notes" name="notes" rows="2" maxlength="500"></textarea>
+        <button class="button button-primary dialog-done bg-blue-700 text-white" type="submit">Save payment</button>
       </form>
     </dialog>
     <dialog class="detail-dialog issue-dialog expense-dialog" id="advance-dialog">
@@ -702,6 +810,7 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
         <label for="liquidation-amount">Liquidated amount (PHP)</label><input id="liquidation-amount" name="amount" type="number" min="0.01" step="0.01" required>
         <label for="receipt-reference">Receipt reference</label><input id="receipt-reference" name="receipt_reference" maxlength="80" placeholder="Receipt or voucher number">
         <label for="liquidation-notes">Notes</label><textarea id="liquidation-notes" name="liquidation_notes" rows="2" maxlength="500"></textarea>
+        <label for="liquidation-receipt">Supporting receipt (PDF, JPEG, PNG, WebP; max 5 MB)</label><input id="liquidation-receipt" name="receipt" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp">
         <button class="button button-primary dialog-done bg-blue-700 text-white" type="submit">Save liquidation</button>
       </form>
     </dialog>

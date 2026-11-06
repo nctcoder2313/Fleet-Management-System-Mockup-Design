@@ -25,19 +25,50 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     respond(405, ['error' => 'Only POST requests are supported.']);
 }
 
-$payload = json_decode(file_get_contents('php://input') ?: '', true);
+$contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+$payload = stripos($contentType, 'multipart/form-data') !== false
+    ? $_POST
+    : json_decode(file_get_contents('php://input') ?: '', true);
 if (!is_array($payload)) {
     respond(400, ['error' => 'A valid JSON request body is required.']);
 }
 
-if (!in_array($payload['action'] ?? '', ['record-expense', 'record-advance', 'liquidate-advance'], true)) {
-    respond(404, ['error' => 'That action is not available in the finance workspace.']);
+if (!in_array($payload['action'] ?? '', [
+    'record-expense', 'update-expense', 'record-bill', 'record-bill-payment', 'update-bill',
+    'record-advance', 'liquidate-advance', 'review-liquidation', 'report-issue',
+    'request-maintenance', 'update-vehicle',
+], true)) {
+    respond(404, ['error' => 'That action is not available in the accounting workspace.']);
 }
 
 try {
     $db = require __DIR__ . '/database.php';
+    $readUpload = static function (string $field): ?array {
+        $upload = $_FILES[$field] ?? null;
+        if ($upload === null || $upload['error'] === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+        if ($upload['error'] !== UPLOAD_ERR_OK || $upload['size'] > 5 * 1024 * 1024 || !is_uploaded_file($upload['tmp_name'])) {
+            respond(422, ['error' => 'Attachments must be uploaded successfully and be no larger than 5 MB.']);
+        }
+        $mime = (new finfo(FILEINFO_MIME_TYPE))->file($upload['tmp_name']);
+        $allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+        if (!in_array($mime, $allowedTypes, true)) {
+            respond(422, ['error' => 'Upload a PDF, JPEG, PNG, or WebP attachment.']);
+        }
+        $name = trim(str_replace(["\r", "\n", "\0"], '', basename((string) $upload['name'])));
+        if ($name === '' || strlen($name) > 160) {
+            respond(422, ['error' => 'Attachment filename must be 1 to 160 characters.']);
+        }
+        $data = file_get_contents($upload['tmp_name']);
+        if ($data === false) {
+            throw new RuntimeException('Unable to read the uploaded attachment.');
+        }
+        return ['name' => $name, 'mime' => $mime, 'data' => $data];
+    };
 
-    if (($payload['action'] ?? '') === 'record-expense') {
+    if (in_array(($payload['action'] ?? ''), ['record-expense', 'update-expense'], true)) {
+        $expenseId = filter_var($payload['id'] ?? null, FILTER_VALIDATE_INT);
         $expenseDate = (string) ($payload['expense_date'] ?? '');
         $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
         $category = (string) ($payload['category'] ?? '');
@@ -45,9 +76,11 @@ try {
         $amount = filter_var($payload['amount'] ?? null, FILTER_VALIDATE_FLOAT);
         $status = (string) ($payload['status'] ?? 'Paid');
         $categories = ['Fuel', 'Maintenance', 'Repairs', 'Parts', 'Registration', 'Inspection', 'Insurance', 'Tolls', 'Parking', 'Cleaning', 'Permits', 'Fines', 'Other'];
-        if (!validDate($expenseDate) || $vehicleCode === '' || !in_array($category, $categories, true)
+        $recordedBy = trim((string) ($payload['recorded_by'] ?? 'Accounting team'));
+        if (($payload['action'] === 'update-expense' && !$expenseId)
+            || !validDate($expenseDate) || $vehicleCode === '' || !in_array($category, $categories, true)
             || $description === '' || strlen($description) > 160 || $amount === false || $amount <= 0
-            || $amount > 10000000 || !in_array($status, ['Paid', 'Pending'], true)) {
+            || $amount > 10000000 || strlen($recordedBy) > 120 || !in_array($status, ['Paid', 'Pending'], true)) {
             respond(422, ['error' => 'Check the expense fields and provide valid values.']);
         }
         $amountCents = (int) round($amount * 100);
@@ -60,20 +93,233 @@ try {
         if (!$vehicle) {
             respond(422, ['error' => 'Choose an existing vehicle.']);
         }
-        $statement = $db->prepare(
-            'INSERT INTO expenses (expense_date, vehicle_code, driver_name, category, description, amount_cents, status)
-             VALUES (:expense_date, :vehicle_code, :driver_name, :category, :description, :amount_cents, :status)'
-        );
-        $statement->execute([
-            'expense_date' => $expenseDate,
-            'vehicle_code' => $vehicleCode,
-            'driver_name' => $vehicle['driver_name'],
-            'category' => $category,
-            'description' => $description,
-            'amount_cents' => $amountCents,
-            'status' => $status,
+        $attachment = $readUpload('receipt');
+        if ($payload['action'] === 'update-expense') {
+            $billLink = $db->prepare('SELECT source_bill_id FROM expenses WHERE id = :id');
+            $billLink->execute(['id' => $expenseId]);
+            $sourceBillId = $billLink->fetchColumn();
+            if ($sourceBillId !== false && $sourceBillId !== null) {
+                respond(422, ['error' => 'Edit this expense from Bills & Payments so its bill remains in sync.']);
+            }
+            $statement = $db->prepare(
+                'UPDATE expenses SET expense_date = :expense_date, vehicle_code = :vehicle_code,
+                    driver_name = :driver_name, category = :category, description = :description,
+                    amount_cents = :amount_cents, status = :status, recorded_by = :recorded_by
+                 WHERE id = :id'
+            );
+            $statement->execute([
+                'expense_date' => $expenseDate, 'vehicle_code' => $vehicleCode, 'driver_name' => $vehicle['driver_name'],
+                'category' => $category, 'description' => $description, 'amount_cents' => $amountCents,
+                'status' => $status, 'recorded_by' => $recordedBy, 'id' => $expenseId,
+            ]);
+            $savedExpenseId = $expenseId;
+        } else {
+            $statement = $db->prepare(
+                'INSERT INTO expenses (expense_date, vehicle_code, driver_name, category, description, amount_cents, status, recorded_by)
+                 VALUES (:expense_date, :vehicle_code, :driver_name, :category, :description, :amount_cents, :status, :recorded_by)'
+            );
+            $statement->execute([
+                'expense_date' => $expenseDate, 'vehicle_code' => $vehicleCode, 'driver_name' => $vehicle['driver_name'],
+                'category' => $category, 'description' => $description, 'amount_cents' => $amountCents,
+                'status' => $status, 'recorded_by' => $recordedBy,
+            ]);
+            $savedExpenseId = (int) $db->lastInsertId();
+        }
+        if ($attachment !== null) {
+            $receiptStatement = $db->prepare(
+                'INSERT INTO expense_receipts (expense_id, file_name, mime_type, file_data)
+                 VALUES (:expense_id, :file_name, :mime_type, :file_data)
+                 ON CONFLICT(expense_id) DO UPDATE SET file_name = excluded.file_name,
+                    mime_type = excluded.mime_type, file_data = excluded.file_data'
+            );
+            $receiptStatement->bindValue(':expense_id', $savedExpenseId, PDO::PARAM_INT);
+            $receiptStatement->bindValue(':file_name', $attachment['name']);
+            $receiptStatement->bindValue(':mime_type', $attachment['mime']);
+            $receiptStatement->bindValue(':file_data', $attachment['data'], PDO::PARAM_LOB);
+            $receiptStatement->execute();
+        }
+        respond($payload['action'] === 'update-expense' ? 200 : 201, [
+            'message' => $payload['action'] === 'update-expense' ? 'Expense updated.' : 'Expense recorded.',
         ]);
-        respond(201, ['message' => 'Expense recorded.']);
+    }
+
+    if (($payload['action'] ?? '') === 'record-bill') {
+        $supplier = trim((string) ($payload['supplier'] ?? ''));
+        $description = trim((string) ($payload['description'] ?? ''));
+        $category = (string) ($payload['category'] ?? '');
+        $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
+        $billDate = (string) ($payload['bill_date'] ?? '');
+        $dueDate = (string) ($payload['due_date'] ?? '');
+        $amount = filter_var($payload['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        $categories = ['Fuel', 'Maintenance', 'Repairs', 'Parts', 'Registration', 'Inspection', 'Insurance', 'Tolls', 'Parking', 'Cleaning', 'Permits', 'Fines', 'Other'];
+        if ($supplier === '' || strlen($supplier) > 120 || $description === '' || strlen($description) > 160
+            || !in_array($category, $categories, true) || !validDate($billDate) || !validDate($dueDate)
+            || $vehicleCode === '' || $amount === false || $amount <= 0 || $amount > 10000000) {
+            respond(422, ['error' => 'Check the bill fields and provide valid values.']);
+        }
+        $amountCents = (int) round($amount * 100);
+        $vehicleExists = $db->prepare('SELECT driver_name FROM vehicles WHERE vehicle_code = :vehicle_code');
+        $vehicleExists->execute(['vehicle_code' => $vehicleCode]);
+        $vehicle = $vehicleExists->fetch(PDO::FETCH_ASSOC);
+        if (!$vehicle) {
+            respond(422, ['error' => 'Choose an existing vehicle.']);
+        }
+        $invoice = $readUpload('invoice');
+        $db->beginTransaction();
+        $expenseStatement = $db->prepare(
+            'INSERT INTO expenses (expense_date, vehicle_code, driver_name, category, description, amount_cents, status, recorded_by)
+             VALUES (:bill_date, :vehicle_code, :driver_name, :category, :description, :amount_cents, \'Pending\', :recorded_by)'
+        );
+        $expenseStatement->execute([
+            'bill_date' => $billDate, 'vehicle_code' => $vehicleCode, 'driver_name' => $vehicle['driver_name'],
+            'category' => $category, 'description' => $description, 'amount_cents' => $amountCents,
+            'recorded_by' => trim((string) ($payload['recorded_by'] ?? 'Accounting team')) ?: 'Accounting team',
+        ]);
+        $expenseId = (int) $db->lastInsertId();
+        $billStatement = $db->prepare(
+            'INSERT INTO bills (supplier, description, category, vehicle_code, bill_date, due_date, amount_cents,
+                expense_id, invoice_name, invoice_mime, invoice_data)
+             VALUES (:supplier, :description, :category, :vehicle_code, :bill_date, :due_date, :amount_cents,
+                :expense_id, :invoice_name, :invoice_mime, :invoice_data)'
+        );
+        $billStatement->bindValue(':supplier', $supplier);
+        $billStatement->bindValue(':description', $description);
+        $billStatement->bindValue(':category', $category);
+        $billStatement->bindValue(':vehicle_code', $vehicleCode);
+        $billStatement->bindValue(':bill_date', $billDate);
+        $billStatement->bindValue(':due_date', $dueDate);
+        $billStatement->bindValue(':amount_cents', $amountCents, PDO::PARAM_INT);
+        $billStatement->bindValue(':expense_id', $expenseId, PDO::PARAM_INT);
+        $billStatement->bindValue(':invoice_name', $invoice['name'] ?? null);
+        $billStatement->bindValue(':invoice_mime', $invoice['mime'] ?? null);
+        $billStatement->bindValue(':invoice_data', $invoice['data'] ?? null, $invoice === null ? PDO::PARAM_NULL : PDO::PARAM_LOB);
+        $billStatement->execute();
+        $billId = (int) $db->lastInsertId();
+        $linkStatement = $db->prepare('UPDATE expenses SET source_bill_id = :bill_id WHERE id = :expense_id');
+        $linkStatement->execute(['bill_id' => $billId, 'expense_id' => $expenseId]);
+        $db->commit();
+        respond(201, ['message' => 'Bill recorded. It has been added to expenses once; payments will only reduce its balance.']);
+    }
+
+    if (($payload['action'] ?? '') === 'update-bill') {
+        $billId = filter_var($payload['id'] ?? null, FILTER_VALIDATE_INT);
+        $supplier = trim((string) ($payload['supplier'] ?? ''));
+        $description = trim((string) ($payload['description'] ?? ''));
+        $category = (string) ($payload['category'] ?? '');
+        $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
+        $billDate = (string) ($payload['bill_date'] ?? '');
+        $dueDate = (string) ($payload['due_date'] ?? '');
+        $amount = filter_var($payload['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        $categories = ['Fuel', 'Maintenance', 'Repairs', 'Parts', 'Registration', 'Inspection', 'Insurance', 'Tolls', 'Parking', 'Cleaning', 'Permits', 'Fines', 'Other'];
+        if (!$billId || $supplier === '' || strlen($supplier) > 120 || $description === '' || strlen($description) > 160
+            || !in_array($category, $categories, true) || !validDate($billDate) || !validDate($dueDate)
+            || $vehicleCode === '' || $amount === false || $amount <= 0 || $amount > 10000000) {
+            respond(422, ['error' => 'Check the bill fields and provide valid values.']);
+        }
+        $amountCents = (int) round($amount * 100);
+        $vehicleExists = $db->prepare('SELECT driver_name FROM vehicles WHERE vehicle_code = :vehicle_code');
+        $vehicleExists->execute(['vehicle_code' => $vehicleCode]);
+        $vehicle = $vehicleExists->fetch(PDO::FETCH_ASSOC);
+        if (!$vehicle) {
+            respond(422, ['error' => 'Choose an existing vehicle.']);
+        }
+        $invoice = $readUpload('invoice');
+        $db->beginTransaction();
+        $existingQuery = $db->prepare(
+            'SELECT bills.expense_id, COALESCE(SUM(bill_payments.amount_cents), 0) AS paid_cents
+             FROM bills LEFT JOIN bill_payments ON bill_payments.bill_id = bills.id
+             WHERE bills.id = :id GROUP BY bills.id'
+        );
+        $existingQuery->execute(['id' => $billId]);
+        $existingBill = $existingQuery->fetch(PDO::FETCH_ASSOC);
+        if (!$existingBill) {
+            $db->rollBack();
+            respond(404, ['error' => 'That bill was not found.']);
+        }
+        if ($amountCents < (int) $existingBill['paid_cents']) {
+            $db->rollBack();
+            respond(422, ['error' => 'Bill amount cannot be less than payments already recorded.']);
+        }
+        $billUpdate = $db->prepare(
+            'UPDATE bills SET supplier = :supplier, description = :description, category = :category,
+                vehicle_code = :vehicle_code, bill_date = :bill_date, due_date = :due_date,
+                amount_cents = :amount_cents,
+                invoice_name = COALESCE(:invoice_name, invoice_name),
+                invoice_mime = COALESCE(:invoice_mime, invoice_mime),
+                invoice_data = COALESCE(:invoice_data, invoice_data)
+             WHERE id = :id'
+        );
+        $billUpdate->bindValue(':supplier', $supplier);
+        $billUpdate->bindValue(':description', $description);
+        $billUpdate->bindValue(':category', $category);
+        $billUpdate->bindValue(':vehicle_code', $vehicleCode);
+        $billUpdate->bindValue(':bill_date', $billDate);
+        $billUpdate->bindValue(':due_date', $dueDate);
+        $billUpdate->bindValue(':amount_cents', $amountCents, PDO::PARAM_INT);
+        $billUpdate->bindValue(':invoice_name', $invoice['name'] ?? null);
+        $billUpdate->bindValue(':invoice_mime', $invoice['mime'] ?? null);
+        $billUpdate->bindValue(':invoice_data', $invoice['data'] ?? null, $invoice === null ? PDO::PARAM_NULL : PDO::PARAM_LOB);
+        $billUpdate->bindValue(':id', $billId, PDO::PARAM_INT);
+        $billUpdate->execute();
+        $expenseUpdate = $db->prepare(
+            'UPDATE expenses SET expense_date = :bill_date, vehicle_code = :vehicle_code,
+                driver_name = :driver_name, category = :category, description = :description,
+                amount_cents = :amount_cents,
+                status = CASE WHEN :amount_cents <= :paid_cents THEN \'Paid\' ELSE \'Pending\' END
+             WHERE id = :expense_id'
+        );
+        $expenseUpdate->execute([
+            'bill_date' => $billDate, 'vehicle_code' => $vehicleCode, 'driver_name' => $vehicle['driver_name'],
+            'category' => $category, 'description' => $description, 'amount_cents' => $amountCents,
+            'paid_cents' => $existingBill['paid_cents'], 'expense_id' => $existingBill['expense_id'],
+        ]);
+        $db->commit();
+        respond(200, ['message' => 'Bill and its linked expense were updated together.']);
+    }
+
+    if (($payload['action'] ?? '') === 'record-bill-payment') {
+        $billId = filter_var($payload['id'] ?? null, FILTER_VALIDATE_INT);
+        $paymentDate = (string) ($payload['payment_date'] ?? '');
+        $amount = filter_var($payload['amount'] ?? null, FILTER_VALIDATE_FLOAT);
+        $reference = trim((string) ($payload['reference'] ?? ''));
+        $notes = trim((string) ($payload['notes'] ?? ''));
+        if (!$billId || !validDate($paymentDate) || $amount === false || $amount <= 0 || $amount > 10000000
+            || strlen($reference) > 100 || strlen($notes) > 500) {
+            respond(422, ['error' => 'Check the payment fields and provide valid values.']);
+        }
+        $amountCents = (int) round($amount * 100);
+        $db->beginTransaction();
+        $billStatement = $db->prepare(
+            'SELECT bills.amount_cents, bills.expense_id,
+                COALESCE(SUM(bill_payments.amount_cents), 0) AS paid_cents
+             FROM bills LEFT JOIN bill_payments ON bill_payments.bill_id = bills.id
+             WHERE bills.id = :id GROUP BY bills.id'
+        );
+        $billStatement->execute(['id' => $billId]);
+        $bill = $billStatement->fetch(PDO::FETCH_ASSOC);
+        if (!$bill) {
+            $db->rollBack();
+            respond(404, ['error' => 'That bill was not found.']);
+        }
+        $balanceCents = (int) $bill['amount_cents'] - (int) $bill['paid_cents'];
+        if ($amountCents < 1 || $amountCents > $balanceCents) {
+            $db->rollBack();
+            respond(422, ['error' => 'Payment cannot exceed the remaining bill balance.']);
+        }
+        $paymentStatement = $db->prepare(
+            'INSERT INTO bill_payments (bill_id, payment_date, amount_cents, reference, notes)
+             VALUES (:bill_id, :payment_date, :amount_cents, :reference, :notes)'
+        );
+        $paymentStatement->execute([
+            'bill_id' => $billId, 'payment_date' => $paymentDate, 'amount_cents' => $amountCents,
+            'reference' => $reference, 'notes' => $notes,
+        ]);
+        if ($amountCents === $balanceCents) {
+            $paidStatement = $db->prepare("UPDATE expenses SET status = 'Paid' WHERE id = :expense_id");
+            $paidStatement->execute(['expense_id' => $bill['expense_id']]);
+        }
+        $db->commit();
+        respond(201, ['message' => 'Payment recorded and applied to the bill balance. No duplicate expense was created.']);
     }
 
     if (($payload['action'] ?? '') === 'record-advance') {
@@ -126,8 +372,14 @@ try {
             respond(422, ['error' => 'Check the liquidation fields and provide valid values.']);
         }
         $amountCents = (int) round($amount * 100);
+        $receipt = $readUpload('receipt');
         $db->beginTransaction();
-        $advanceStatement = $db->prepare('SELECT amount_cents, liquidated_cents FROM cash_advances WHERE id = :id');
+        $advanceStatement = $db->prepare(
+            'SELECT cash_advances.amount_cents, cash_advances.liquidated_cents,
+                COALESCE((SELECT SUM(amount_cents) FROM advance_liquidations
+                    WHERE advance_id = cash_advances.id AND status = \'Submitted\'), 0) AS submitted_cents
+             FROM cash_advances WHERE cash_advances.id = :id'
+        );
         $advanceStatement->execute(['id' => $advanceId]);
         $advance = $advanceStatement->fetch(PDO::FETCH_ASSOC);
         if (!$advance) {
@@ -135,36 +387,82 @@ try {
             respond(404, ['error' => 'That advance was not found.']);
         }
         $remainingCents = (int) $advance['amount_cents'] - (int) $advance['liquidated_cents'];
-        if ($amountCents < 1 || $amountCents > $remainingCents) {
+        if ($amountCents < 1 || $amountCents > $remainingCents - (int) $advance['submitted_cents']) {
             $db->rollBack();
-            respond(422, ['error' => 'Liquidation cannot exceed the outstanding balance.']);
+            respond(422, ['error' => 'Submitted receipts cannot exceed the unapproved advance balance.']);
         }
-        $statement = $db->prepare(
-            'UPDATE cash_advances SET liquidated_cents = liquidated_cents + :amount_cents,
-                liquidated_at = :liquidated_at, receipt_reference = :receipt_reference,
-                liquidation_notes = :liquidation_notes WHERE id = :id'
-        );
-        $statement->execute([
-            'amount_cents' => $amountCents,
-            'liquidated_at' => $liquidatedAt,
-            'receipt_reference' => $receiptReference,
-            'liquidation_notes' => $liquidationNotes,
-            'id' => $advanceId,
-        ]);
         $liquidationStatement = $db->prepare(
-            'INSERT INTO advance_liquidations (advance_id, liquidated_at, liquidated_by, amount_cents, receipt_reference, notes)
-             VALUES (:advance_id, :liquidated_at, :liquidated_by, :amount_cents, :receipt_reference, :notes)'
+            'INSERT INTO advance_liquidations
+                (advance_id, liquidated_at, liquidated_by, amount_cents, receipt_reference, notes, status, receipt_name, receipt_mime, receipt_data)
+             VALUES (:advance_id, :liquidated_at, :liquidated_by, :amount_cents, :receipt_reference, :notes, \'Submitted\',
+                :receipt_name, :receipt_mime, :receipt_data)'
         );
-        $liquidationStatement->execute([
-            'advance_id' => $advanceId,
-            'liquidated_at' => $liquidatedAt,
-            'liquidated_by' => $liquidatedBy,
-            'amount_cents' => $amountCents,
-            'receipt_reference' => $receiptReference,
-            'notes' => $liquidationNotes,
+        $liquidationStatement->bindValue(':advance_id', $advanceId, PDO::PARAM_INT);
+        $liquidationStatement->bindValue(':liquidated_at', $liquidatedAt);
+        $liquidationStatement->bindValue(':liquidated_by', $liquidatedBy);
+        $liquidationStatement->bindValue(':amount_cents', $amountCents, PDO::PARAM_INT);
+        $liquidationStatement->bindValue(':receipt_reference', $receiptReference);
+        $liquidationStatement->bindValue(':notes', $liquidationNotes);
+        $liquidationStatement->bindValue(':receipt_name', $receipt['name'] ?? null);
+        $liquidationStatement->bindValue(':receipt_mime', $receipt['mime'] ?? null);
+        $liquidationStatement->bindValue(':receipt_data', $receipt['data'] ?? null, $receipt === null ? PDO::PARAM_NULL : PDO::PARAM_LOB);
+        $liquidationStatement->execute();
+        $db->commit();
+        respond(201, ['message' => 'Liquidation submitted for review. The outstanding balance will update after approval.']);
+    }
+
+    if (($payload['action'] ?? '') === 'review-liquidation') {
+        $liquidationId = filter_var($payload['id'] ?? null, FILTER_VALIDATE_INT);
+        $decision = (string) ($payload['decision'] ?? '');
+        if (!$liquidationId || !in_array($decision, ['approve', 'reject'], true)) {
+            respond(422, ['error' => 'Choose a valid liquidation and review decision.']);
+        }
+        $db->beginTransaction();
+        $reviewQuery = $db->prepare(
+            'SELECT advance_liquidations.advance_id, advance_liquidations.amount_cents,
+                    advance_liquidations.status, advance_liquidations.liquidated_at,
+                    advance_liquidations.receipt_reference, advance_liquidations.notes,
+                    cash_advances.amount_cents AS advance_amount_cents,
+                    cash_advances.liquidated_cents AS approved_cents
+             FROM advance_liquidations
+             JOIN cash_advances ON cash_advances.id = advance_liquidations.advance_id
+             WHERE advance_liquidations.id = :id'
+        );
+        $reviewQuery->execute(['id' => $liquidationId]);
+        $submission = $reviewQuery->fetch(PDO::FETCH_ASSOC);
+        if (!$submission || $submission['status'] !== 'Submitted') {
+            $db->rollBack();
+            respond(409, ['error' => 'That liquidation is no longer waiting for review.']);
+        }
+        if ($decision === 'approve') {
+            $balanceCents = (int) $submission['advance_amount_cents'] - (int) $submission['approved_cents'];
+            if ((int) $submission['amount_cents'] > $balanceCents) {
+                $db->rollBack();
+                respond(409, ['error' => 'This submission exceeds the advance’s current balance.']);
+            }
+            $approveQuery = $db->prepare(
+                'UPDATE cash_advances SET liquidated_cents = liquidated_cents + :amount_cents,
+                    liquidated_at = :liquidated_at, receipt_reference = :receipt_reference,
+                    liquidation_notes = :notes WHERE id = :id'
+            );
+            $approveQuery->execute([
+                'amount_cents' => $submission['amount_cents'],
+                'liquidated_at' => $submission['liquidated_at'],
+                'receipt_reference' => $submission['receipt_reference'],
+                'notes' => $submission['notes'],
+                'id' => $submission['advance_id'],
+            ]);
+        }
+        $reviewUpdate = $db->prepare(
+            'UPDATE advance_liquidations SET status = :status
+             WHERE id = :id AND status = \'Submitted\''
+        );
+        $reviewUpdate->execute([
+            'status' => $decision === 'approve' ? 'Approved' : 'Rejected',
+            'id' => $liquidationId,
         ]);
         $db->commit();
-        respond(200, ['message' => 'Driver advance liquidation saved.']);
+        respond(200, ['message' => $decision === 'approve' ? 'Liquidation approved.' : 'Liquidation rejected.']);
     }
 
     if (($payload['action'] ?? '') === 'report-issue') {

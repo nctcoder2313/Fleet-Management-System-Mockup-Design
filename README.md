@@ -24,15 +24,16 @@ creates `fleet.sqlite` and loads the sample data from `schema.sql`.
 ## Stack and interactions
 
 - Use Overview for financial summary cards, expense trend, category spend, recent expenses, and open driver advances.
-- Use Expenses to filter and review the full ledger, record expenses, and export CSV reports.
-- Use Driver Advances to record advances, filter the full register, and save partial or complete liquidations with receipt references.
-- Use Reports to review period totals, monthly trends, and expense categories.
+- Use Expenses to search and filter the full ledger, record or edit expenses, attach receipts, and export CSV reports.
+- Use Bills & Payments to manage supplier invoices, record partial or full payments, and review payment history. Each bill is linked to one expense; bill payments only reduce its balance.
+- Use Driver Advances to record advances, submit receipt-backed liquidations, review submissions, and track remaining balances.
+- Use Reports to filter expense summaries by period, vehicle, and category, then export CSV for Excel or print/save as PDF.
 
-The dashboard uses local sample data, including 30 expense records and 18
-driver advances. The project does not implement user authentication, payroll,
-head-admin user management, or connect to live fleet data. Fleet finance records
-are stored in the local SQLite database. The API only accepts finance write
-actions in this workspace.
+The dashboard uses local sample data and stores fleet finance records in the
+local SQLite database. Attachments are limited to PDF, JPEG, PNG, or WebP files
+up to 5 MB. PDF output uses the browser's print dialog. The project does not
+implement user authentication, payroll, head-admin user management, or connect
+to live fleet data.
 
 Typography uses the system sans-serif stack. Tailwind's Play CDN is intended
 for mockups and development, not production deployment.

@@ -203,7 +203,7 @@ tbody td { height: 55px; padding: 8px 10px; border-top: 1px solid #f0f2f1; font-
 .accounting-filters [hidden] { display: none; }
 .filter-submit, .export-button { height: 34px; border-color: #dbe3eb; color: #334155; background: #f8fafc; font-size: 11px; }
 .export-button { display: inline-flex; align-items: center; text-decoration: none; }
-.accounting-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.accounting-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .accounting-chart-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr); gap: 14px; margin-bottom: 14px; }
 .accounting-chart-panel { min-height: 250px; }
 .line-chart-wrap { padding: 0 18px 15px; }
@@ -218,9 +218,10 @@ tbody td { height: 55px; padding: 8px 10px; border-top: 1px solid #f0f2f1; font-
 .expense-donut > span { z-index: 1; grid-area: 1 / 1; color: #0f172a; font-size: 14px; font-weight: 700; text-align: center; }
 .expense-donut small { display: block; margin-top: 3px; color: #64748b; font-size: 9px; font-weight: 500; }
 .category-legend { min-width: 120px; display: grid; gap: 8px; }
-.category-legend > div { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 6px; color: #64748b; font-size: 10px; }
+.category-legend > div { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 4px 6px; color: #64748b; font-size: 10px; }
 .category-legend i { width: 8px; height: 8px; border-radius: 2px; background: var(--category-color); }
 .category-legend strong { color: #334155; font-size: 10px; }
+.category-legend em { grid-column: 2 / 4; color: #64748b; font-size: 9px; font-style: normal; }
 .accounting-table-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .8fr); gap: 14px; }
 .accounting-table { min-width: 650px; }
 .advance-table { min-width: 430px; }
@@ -232,6 +233,18 @@ tbody td { height: 55px; padding: 8px 10px; border-top: 1px solid #f0f2f1; font-
 .expense-status { display: inline-flex; padding: 4px 7px; border-radius: 12px; color: #166534; background: #dcfce7; font-size: 9px; font-weight: 600; }
 .expense-status.status-pending { color: #9a3412; background: #ffedd5; }
 .expense-status.status-partial { color: #1d4ed8; background: #dbeafe; }
+.expense-status.status-overdue, .expense-status.status-rejected { color: #b91c1c; background: #fee2e2; }
+.expense-status.status-partially-paid, .expense-status.status-submitted-for-review { color: #1d4ed8; background: #dbeafe; }
+.expense-status.status-approved, .expense-status.status-fully-liquidated { color: #166534; background: #dcfce7; }
+.bills-table { min-width: 1150px; }
+.advance-ledger { min-width: 1320px; }
+.action-cell { display: flex; align-items: center; gap: 5px; }
+.danger-action { border-color: #fecaca; color: #b91c1c; background: #fff7f7; }
+.bill-payment-details { min-width: 100px; color: #475569; font-size: 9px; }
+.bill-payment-details summary { color: #1d4ed8; cursor: pointer; }
+.bill-payment-details p { margin: 4px 0; white-space: normal; }
+.detail-dialog input[type="file"] { width: 100%; height: auto; min-height: 34px; padding: 7px; }
+.detail-dialog input[readonly] { background: #f1f5f9; }
 .table-empty { height: 80px; color: #64748b; text-align: center; }
 .expense-dialog form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .expense-dialog form label { margin-top: 2px; }
@@ -378,6 +391,7 @@ a.maintenance-action { display: inline-block; text-decoration: none; }
 }
 @media (max-width: 900px) {
   .accounting-chart-grid, .accounting-table-grid { grid-template-columns: 1fr; }
+  .accounting-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
   .sidebar { width: 65px; align-items: center; padding-right: 8px; padding-left: 8px; }

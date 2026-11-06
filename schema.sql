@@ -79,7 +79,44 @@ CREATE TABLE IF NOT EXISTS expenses (
     category TEXT NOT NULL CHECK (category IN ('Fuel', 'Maintenance', 'Repairs', 'Parts', 'Registration', 'Inspection', 'Insurance', 'Tolls', 'Parking', 'Cleaning', 'Permits', 'Fines', 'Other')),
     description TEXT NOT NULL,
     amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
-    status TEXT NOT NULL DEFAULT 'Paid' CHECK (status IN ('Paid', 'Pending'))
+    status TEXT NOT NULL DEFAULT 'Paid' CHECK (status IN ('Paid', 'Pending')),
+    recorded_by TEXT NOT NULL DEFAULT 'Accounting team',
+    source_bill_id INTEGER
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS expenses_source_bill_unique
+    ON expenses(source_bill_id) WHERE source_bill_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS expense_receipts (
+    expense_id INTEGER PRIMARY KEY REFERENCES expenses(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    file_data BLOB NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS bills (
+    id INTEGER PRIMARY KEY,
+    supplier TEXT NOT NULL,
+    description TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('Fuel', 'Maintenance', 'Repairs', 'Parts', 'Registration', 'Inspection', 'Insurance', 'Tolls', 'Parking', 'Cleaning', 'Permits', 'Fines', 'Other')),
+    vehicle_code TEXT NOT NULL REFERENCES vehicles(vehicle_code),
+    bill_date TEXT NOT NULL,
+    due_date TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    expense_id INTEGER NOT NULL UNIQUE REFERENCES expenses(id),
+    invoice_name TEXT,
+    invoice_mime TEXT,
+    invoice_data BLOB,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS bill_payments (
+    id INTEGER PRIMARY KEY,
+    bill_id INTEGER NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+    payment_date TEXT NOT NULL,
+    amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+    reference TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS cash_advances (
@@ -103,7 +140,11 @@ CREATE TABLE IF NOT EXISTS advance_liquidations (
     liquidated_by TEXT NOT NULL DEFAULT 'Not recorded',
     amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
     receipt_reference TEXT NOT NULL DEFAULT '',
-    notes TEXT NOT NULL DEFAULT ''
+    notes TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'Approved' CHECK (status IN ('Submitted', 'Approved', 'Rejected')),
+    receipt_name TEXT,
+    receipt_mime TEXT,
+    receipt_data BLOB
 );
 
 INSERT OR IGNORE INTO vehicles
@@ -191,6 +232,24 @@ INSERT OR IGNORE INTO expenses (id, expense_date, vehicle_code, category, descri
     (28, date('now', '-24 days'), 'VH-118', 'Permits', 'Oversize load permit', 6900, 'Paid'),
     (29, date('now', '-25 days'), 'VH-204', 'Parts', 'Wiper blades and bulbs', 3650, 'Paid'),
     (30, date('now', '-26 days'), 'VH-307', 'Cleaning', 'Exterior wash', 2800, 'Paid');
+
+INSERT OR IGNORE INTO expenses
+    (id, expense_date, vehicle_code, category, description, amount_cents, status, recorded_by, source_bill_id)
+VALUES
+    (31, date('now', '-8 days'), 'VH-118', 'Fuel', 'Diesel supplier invoice · INV-2026-104', 485000, 'Pending', 'Accounting team', 1),
+    (32, date('now', '-16 days'), 'VH-331', 'Maintenance', 'Fleet service invoice · INV-2026-087', 236500, 'Pending', 'Accounting team', 2),
+    (33, date('now', '-12 days'), 'VH-204', 'Insurance', 'Vehicle policy premium · INV-2026-061', 152000, 'Paid', 'Accounting team', 3);
+
+INSERT OR IGNORE INTO bills
+    (id, supplier, description, category, vehicle_code, bill_date, due_date, amount_cents, expense_id)
+VALUES
+    (1, 'Northstar Fuel Supply', 'Diesel supplier invoice · INV-2026-104', 'Fuel', 'VH-118', date('now', '-8 days'), date('now', '+5 days'), 485000, 31),
+    (2, 'Central Fleet Service', 'Fleet service invoice · INV-2026-087', 'Maintenance', 'VH-331', date('now', '-16 days'), date('now', '-2 days'), 236500, 32),
+    (3, 'Paragon Vehicle Cover', 'Vehicle policy premium · INV-2026-061', 'Insurance', 'VH-204', date('now', '-12 days'), date('now', '-5 days'), 152000, 33);
+
+INSERT OR IGNORE INTO bill_payments (id, bill_id, payment_date, amount_cents, reference, notes) VALUES
+    (1, 1, date('now', '-3 days'), 125000, 'PAY-104-01', 'Partial supplier payment'),
+    (2, 3, date('now', '-5 days'), 152000, 'PAY-061-01', 'Paid in full');
 
 INSERT OR IGNORE INTO cash_advances (id, advance_date, driver_name, vehicle_code, purpose, notes, amount_cents, liquidated_cents, liquidated_at, receipt_reference) VALUES
     (1, date('now', '-4 days'), 'Marcus Reed', 'VH-204', 'Fuel and route tolls', 'Salem delivery run', 15000, 15000, date('now', '-3 days'), 'RCPT-204-01'),

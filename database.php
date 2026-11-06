@@ -52,6 +52,12 @@ try {
         if (!in_array('driver_name', $expenseColumns, true)) {
             $db->exec('ALTER TABLE expenses ADD COLUMN driver_name TEXT');
         }
+        if (!in_array('recorded_by', $expenseColumns, true)) {
+            $db->exec("ALTER TABLE expenses ADD COLUMN recorded_by TEXT NOT NULL DEFAULT 'Accounting team'");
+        }
+        if (!in_array('source_bill_id', $expenseColumns, true)) {
+            $db->exec('ALTER TABLE expenses ADD COLUMN source_bill_id INTEGER');
+        }
         $db->exec(
             'UPDATE expenses SET driver_name = (
                 SELECT vehicles.driver_name FROM vehicles WHERE vehicles.vehicle_code = expenses.vehicle_code
@@ -82,6 +88,18 @@ try {
     $liquidationColumns = $db->query('PRAGMA table_info(advance_liquidations)')->fetchAll(PDO::FETCH_COLUMN, 1);
     if (!in_array('liquidated_by', $liquidationColumns, true)) {
         $db->exec("ALTER TABLE advance_liquidations ADD COLUMN liquidated_by TEXT NOT NULL DEFAULT 'Not recorded'");
+    }
+    if (!in_array('status', $liquidationColumns, true)) {
+        $db->exec("ALTER TABLE advance_liquidations ADD COLUMN status TEXT NOT NULL DEFAULT 'Approved'");
+    }
+    foreach ([
+        'receipt_name' => 'TEXT',
+        'receipt_mime' => 'TEXT',
+        'receipt_data' => 'BLOB',
+    ] as $column => $definition) {
+        if (!in_array($column, $liquidationColumns, true)) {
+            $db->exec("ALTER TABLE advance_liquidations ADD COLUMN $column $definition");
+        }
     }
     if (!$hadLiquidationHistory) {
         $db->exec(
