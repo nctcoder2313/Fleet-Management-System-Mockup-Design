@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/database/connection.php';
+
 session_set_cookie_params([
     'httponly' => true,
     'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
@@ -33,45 +35,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($email === false || $password === '') {
             $error = 'Enter a valid email address and password.';
         } else {
-            $host = getenv('DB_HOST');
-            $database = getenv('DB_NAME');
-            $username = getenv('DB_USER');
-            $dbPassword = getenv('DB_PASSWORD');
+            try {
+                $pdo = databaseConnection();
+                $statement = $pdo->prepare(
+                    'SELECT id, name, role, password_hash FROM users WHERE email = :email LIMIT 1'
+                );
+                $statement->execute(['email' => $email]);
+                $user = $statement->fetch();
 
-            if (!$host || !$database || $username === false || $dbPassword === false) {
-                $error = 'Login is not connected yet. Configure the MySQL database to continue.';
-            } else {
-                try {
-                    $pdo = new PDO(
-                        "mysql:host={$host};dbname={$database};charset=utf8mb4",
-                        $username,
-                        $dbPassword,
-                        [
-                            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                            PDO::ATTR_EMULATE_PREPARES => false,
-                        ]
-                    );
-                    $statement = $pdo->prepare(
-                        'SELECT id, name, role, password_hash FROM users WHERE email = :email LIMIT 1'
-                    );
-                    $statement->execute(['email' => $email]);
-                    $user = $statement->fetch();
-
-                    if ($user && password_verify($password, $user['password_hash'])) {
-                        session_regenerate_id(true);
-                        $_SESSION['user_id'] = (int) $user['id'];
-                        $_SESSION['user_name'] = $user['name'];
-                        $_SESSION['user_role'] = $user['role'];
-                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                        $signedIn = true;
-                    } else {
-                        $error = 'The email or password you entered is incorrect.';
-                    }
-                } catch (PDOException $exception) {
-                    error_log('Fleet management login database error: ' . $exception->getMessage());
-                    $error = 'We could not connect to the login service. Please try again later.';
+                if ($user && password_verify($password, $user['password_hash'])) {
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = (int) $user['id'];
+                    $_SESSION['user_name'] = $user['name'];
+                    $_SESSION['user_role'] = $user['role'];
+                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                    $signedIn = true;
+                } else {
+                    $error = 'The email or password you entered is incorrect.';
                 }
+            } catch (PDOException $exception) {
+                error_log('Fleet management login database error: ' . $exception->getMessage());
+                $error = 'We could not connect to the login service. Please try again later.';
             }
         }
     }

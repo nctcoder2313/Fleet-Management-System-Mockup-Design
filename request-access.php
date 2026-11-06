@@ -1,5 +1,91 @@
 <?php
 declare(strict_types=1);
+
+require_once __DIR__ . '/database/connection.php';
+
+session_set_cookie_params([
+    'httponly' => true,
+    'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+    'samesite' => 'Lax',
+]);
+session_start();
+
+if (!isset($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+$error = '';
+$notice = '';
+$name = '';
+$email = '';
+$role = '';
+$reason = '';
+$password = '';
+$passwordConfirmation = '';
+$roles = ['accounting', 'manager', 'admin', 'head_admin'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $submittedToken = $_POST['csrf_token'] ?? '';
+    if (!is_string($submittedToken) || !hash_equals($_SESSION['csrf_token'], $submittedToken)) {
+        http_response_code(400);
+        $error = 'Your session expired. Refresh the page and try again.';
+    } else {
+        $name = trim((string) ($_POST['name'] ?? ''));
+        $email = filter_var(trim((string) ($_POST['email'] ?? '')), FILTER_VALIDATE_EMAIL) ?: '';
+        $role = (string) ($_POST['role'] ?? '');
+        $reason = trim((string) ($_POST['reason'] ?? ''));
+        $password = (string) ($_POST['password'] ?? '');
+        $passwordConfirmation = (string) ($_POST['password_confirmation'] ?? '');
+
+        if ($name === '' || strlen($name) > 120 || $email === '' || strlen($email) > 254
+            || !in_array($role, $roles, true) || strlen($reason) > 1000) {
+            $error = 'Check your details and try again. Reason for access must be 1,000 characters or fewer.';
+        } elseif (strlen($password) < 8 || strlen($password) > 72) {
+            $error = 'Your password must be at least 8 characters and no more than 72 bytes.';
+        } elseif ($password !== $passwordConfirmation) {
+            $error = 'The passwords do not match.';
+        } else {
+            try {
+                $pdo = databaseConnection();
+                $existingUser = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+                $existingUser->execute(['email' => $email]);
+
+                if ($existingUser->fetch()) {
+                    $error = 'An account already exists for this email. Please contact your administrator.';
+                } else {
+                    $pendingRequest = $pdo->prepare(
+                        "SELECT id FROM access_requests WHERE email = :email AND status = 'pending' LIMIT 1"
+                    );
+                    $pendingRequest->execute(['email' => $email]);
+
+                    if ($pendingRequest->fetch()) {
+                        $error = 'A request for this email is already pending review.';
+                    } else {
+                        $insert = $pdo->prepare(
+                            'INSERT INTO access_requests (name, email, requested_role, reason, password_hash) '
+                            . 'VALUES (:name, :email, :role, :reason, :password_hash)'
+                        );
+                        $insert->execute([
+                            'name' => $name,
+                            'email' => $email,
+                            'role' => $role,
+                            'reason' => $reason === '' ? null : $reason,
+                            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                        ]);
+                        $notice = 'Your request was submitted. An administrator will review it.';
+                        $name = $email = $role = $reason = $password = $passwordConfirmation = '';
+                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                    }
+                }
+            } catch (PDOException $exception) {
+                error_log('Fleet management access request database error: ' . $exception->getMessage());
+                $error = 'We could not save your request. Please try again later.';
+            }
+        }
+    }
+}
+
+$escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
 <html lang="en">
@@ -73,30 +159,52 @@ declare(strict_types=1);
                 </p>
             </div>
 
+            <?php if ($error !== ''): ?>
+                <p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800" role="alert">
+                    <?= $escape($error) ?>
+                </p>
+            <?php elseif ($notice !== ''): ?>
+                <p class="mb-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900" role="status">
+                    <?= $escape($notice) ?>
+                </p>
+            <?php endif; ?>
+
             <form id="request-form" class="space-y-3" action="request-access.php" method="post">
+                    <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700" for="request-name">Full name</label>
-                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-name" name="name" type="text" autocomplete="name" placeholder="Your full name" required>
+                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-name" name="name" type="text" autocomplete="name" placeholder="Your full name" maxlength="120" value="<?= $escape($name) ?>" required>
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700" for="request-email">Work email</label>
-                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" required>
+                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" maxlength="254" value="<?= $escape($email) ?>" required>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-password">Create password</label>
+                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="At least 8 characters" required>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-password-confirmation">Confirm password</label>
+                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Enter your password again" required>
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700" for="requested-role">Requested role</label>
                         <select class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" id="requested-role" name="role" required>
-                            <option value="" selected disabled>Select a role</option>
-                            <option value="accounting">Accounting</option>
-                            <option value="manager">Manager</option>
-                            <option value="admin">Admin</option>
-                            <option value="head_admin">Head Admin</option>
+                            <option value="" disabled <?= $role === '' ? 'selected' : '' ?>>Select a role</option>
+                            <option value="accounting" <?= $role === 'accounting' ? 'selected' : '' ?>>Accounting</option>
+                            <option value="manager" <?= $role === 'manager' ? 'selected' : '' ?>>Manager</option>
+                            <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>Admin</option>
+                            <option value="head_admin" <?= $role === 'head_admin' ? 'selected' : '' ?>>Head Admin</option>
                         </select>
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700" for="request-reason">Reason for access <span class="font-normal text-slate-500">(optional)</span></label>
-                        <textarea class="form-input w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-reason" name="reason" rows="2" placeholder="Briefly describe your work requirements"></textarea>
+                        <textarea class="form-input w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-reason" name="reason" rows="2" maxlength="1000" placeholder="Briefly describe your work requirements"><?= $escape($reason) ?></textarea>
                     </div>
 
+                    <p class="text-xs leading-5 text-slate-600">
+                        Your password is stored securely and your account will be created after approval.
+                    </p>
                     <p class="text-xs leading-5 text-slate-600">
                         Admin and Head Admin access requires approval from an existing Head Admin.
                     </p>
@@ -105,10 +213,6 @@ declare(strict_types=1);
                     </button>
             </form>
 
-            <p id="request-notice" class="mt-4 hidden rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-blue-900" role="status">
-                This request form is a mockup and does not send or save your information yet.
-            </p>
-
             <p class="mt-4 border-t border-slate-100 pt-3 text-center">
                 <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="login.php">
                     Back to log in
@@ -116,11 +220,5 @@ declare(strict_types=1);
             </p>
         </section>
     </main>
-    <script>
-        document.getElementById('request-form').addEventListener('submit', (event) => {
-            event.preventDefault();
-            document.getElementById('request-notice').classList.remove('hidden');
-        });
-    </script>
 </body>
 </html>
