@@ -9,6 +9,7 @@ foreach ($vehicleStats as $stat) {
     $vehicleCounts[$stat['status']] = (int) $stat['count'];
 }
 $totalVehicles = array_sum($vehicleCounts);
+$unassignedVehicleCount = (int) $unassignedVehicleCount;
 $onDutyDrivers = (int) $onDutyDrivers;
 $totalDrivers = (int) $totalDrivers;
 $openAlerts = count($alerts);
@@ -117,13 +118,9 @@ $views = [
   </head>
   <body class="text-slate-900">
     <div class="app-shell min-h-screen">
-      <aside class="sidebar bg-white" aria-label="Main navigation">
-        <a class="brand" href="?view=overview" aria-label="Fleet Management home">
-          <span class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 32 32" fill="none"><path d="M5 22.5 15.8 5l4.3 7-5 8.2H26l-3.7 6H5Z" fill="currentColor"/><path d="m18.7 13.2 4.1 6.7h-7.5" stroke="#13251F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </span>
-          <span>Fleet <span class="brand-light">Management</span></span>
-        </a>
+     <a class="brand" href="?view=overview" aria-label="Fleet Management home">
+  <img class="brand-logo" src="assets/paragon.webp" alt="Paragon Communications Corp.">
+</a>
 
         <div class="workspace-label">MANAGER WORKSPACE</div>
         <nav class="nav-list">
@@ -525,12 +522,49 @@ $views = [
             </article>
           </section>
           <?php elseif ($activeView === 'fleet'): ?>
-          <section class="workspace-grid" aria-label="Editable fleet records">
+          <section class="metrics-grid fleet-summary" aria-label="Vehicle availability summary">
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Total Vehicles</span><span class="metric-icon icon-blue">▤</span></span><span class="metric-value"><?= h($totalVehicles) ?></span><span class="metric-foot">Fleet records</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Available</span><span class="metric-icon icon-green">✓</span></span><span class="metric-value"><?= h($vehicleCounts['idle']) ?></span><span class="metric-foot">Ready for assignment</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">On Trip</span><span class="metric-icon icon-blue">↗</span></span><span class="metric-value"><?= h($vehicleCounts['active']) ?></span><span class="metric-foot">Currently in service</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">In Maintenance</span><span class="metric-icon icon-amber">⚙</span></span><span class="metric-value"><?= h($vehicleCounts['maintenance']) ?></span><span class="metric-foot">Under maintenance</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Offline</span><span class="metric-icon icon-violet">◷</span></span><span class="metric-value"><?= h($vehicleCounts['offline']) ?></span><span class="metric-foot">Currently unavailable</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Unassigned</span><span class="metric-icon icon-teal">↔</span></span><span class="metric-value"><?= h($unassignedVehicleCount) ?></span><span class="metric-foot">No assigned driver</span></article>
+          </section>
+          <section class="panel fleet-roster" aria-label="Fleet vehicles">
+            <div class="panel-heading">
+              <div><h2>Vehicle list</h2><p>Review vehicle availability, drivers, and current assignments</p></div>
+              <span class="count-pill"><?= h($totalVehicles) ?> vehicles</span>
+            </div>
+            <div class="table-toolbar fleet-filter-toolbar">
+              <div class="filter-tabs fleet-filter-tabs" role="group" aria-label="Filter vehicles by status">
+                <button class="filter-tab active" type="button" data-vehicle-filter="all" aria-pressed="true">All <span><?= h($totalVehicles) ?></span></button>
+                <button class="filter-tab" type="button" data-vehicle-filter="idle" aria-pressed="false">Available <span><?= h($vehicleCounts['idle']) ?></span></button>
+                <button class="filter-tab" type="button" data-vehicle-filter="active" aria-pressed="false">On Trip <span><?= h($vehicleCounts['active']) ?></span></button>
+                <button class="filter-tab" type="button" data-vehicle-filter="maintenance" aria-pressed="false">In Maintenance <span><?= h($vehicleCounts['maintenance']) ?></span></button>
+                <button class="filter-tab" type="button" data-vehicle-filter="offline" aria-pressed="false">Offline <span><?= h($vehicleCounts['offline']) ?></span></button>
+                <button class="filter-tab" type="button" data-vehicle-filter="unassigned" aria-pressed="false">Unassigned <span><?= h($unassignedVehicleCount) ?></span></button>
+              </div>
+            </div>
+            <div class="workspace-grid fleet-vehicle-grid" id="fleet-vehicle-list">
             <?php foreach ($vehicles as $vehicle): ?>
-            <article class="panel workspace-card search-item" data-search="<?= h(strtolower(implode(' ', array_filter($vehicle)))) ?>">
+            <?php
+            $vehicleStatusLabels = ['active' => 'On Trip', 'idle' => 'Available', 'maintenance' => 'In Maintenance', 'offline' => 'Offline'];
+            $vehicleStatusClasses = ['active' => 'fleet-status-trip', 'idle' => 'fleet-status-available', 'maintenance' => 'fleet-status-maintenance', 'offline' => 'fleet-status-offline'];
+            $hasAssignedDriver = trim((string) ($vehicle['driver_name'] ?? '')) !== '';
+            $vehicleSearch = strtolower(implode(' ', array_filter([
+                $vehicle['vehicle_code'], $vehicle['make'], $vehicle['vehicle_type'], $vehicle['status'],
+                $vehicleStatusLabels[$vehicle['status']], $vehicle['driver_name'], $vehicle['assignment'], $vehicle['location'],
+                $hasAssignedDriver ? '' : 'unassigned',
+            ])));
+            ?>
+            <article class="panel workspace-card search-item fleet-vehicle-card" data-vehicle-card data-vehicle-status="<?= h($vehicle['status']) ?>" data-driver-assigned="<?= $hasAssignedDriver ? '1' : '0' ?>" data-search="<?= h($vehicleSearch) ?>">
               <div class="panel-heading">
                 <div><h2><?= h($vehicle['vehicle_code']) ?></h2><p><?= h($vehicle['make']) ?> · <?= h($vehicle['vehicle_type']) ?></p></div>
-                <span class="status-badge status-<?= h($vehicle['status']) ?>"><?= h(ucfirst($vehicle['status'])) ?></span>
+                <span class="fleet-status-badge <?= h($vehicleStatusClasses[$vehicle['status']]) ?>"><i></i><?= h($vehicleStatusLabels[$vehicle['status']]) ?></span>
+              </div>
+              <div class="fleet-vehicle-summary">
+                <div><span>Assigned driver</span><strong><?= $hasAssignedDriver ? h($vehicle['driver_name']) : 'Unassigned' ?></strong></div>
+                <div><span>Current assignment</span><strong><?= $vehicle['assignment'] !== '' ? h($vehicle['assignment']) : 'No current assignment' ?></strong></div>
               </div>
               <form class="record-form" data-record-form>
                 <input type="hidden" name="action" value="update-vehicle">
@@ -547,6 +581,9 @@ $views = [
               </form>
             </article>
             <?php endforeach; ?>
+            <p class="fleet-empty-state" id="fleet-vehicle-empty" hidden>No vehicles match this filter.</p>
+            </div>
+            <div class="driver-table-footer"><span>Showing <strong id="fleet-vehicle-visible-count"><?= h($totalVehicles) ?></strong> of <?= h($totalVehicles) ?> vehicles</span><span>Unassigned is based on driver assignment, not vehicle status</span></div>
           </section>
           <?php elseif ($activeView === 'trips'): ?>
           <section class="workspace-grid" aria-label="Editable trip records">
@@ -570,19 +607,36 @@ $views = [
             <?php endforeach; ?>
           </section>
           <?php elseif ($activeView === 'drivers'): ?>
-          <section class="workspace-grid" aria-label="Editable driver records">
-            <?php foreach ($drivers as $driver): ?>
-            <article class="panel workspace-card search-item" data-search="<?= h(strtolower(implode(' ', $driver))) ?>">
-              <div class="panel-heading"><div><h2><?= h($driver['name']) ?></h2><p><?= h($driver['vehicle_code'] ?: 'No vehicle assigned') ?></p></div><span class="count-pill"><?= $driver['on_duty'] ? 'On duty' : 'Off duty' ?></span></div>
-              <div class="driver-assignment"><strong>Current assignment</strong><span><?= h($driver['assignment'] ?: 'Available for assignment') ?></span></div>
-              <form class="record-form" data-record-form>
-                <input type="hidden" name="action" value="update-driver">
-                <input type="hidden" name="id" value="<?= h($driver['id']) ?>">
-                <label>Duty status<select name="on_duty"><option value="1" <?= $driver['on_duty'] ? 'selected' : '' ?>>On duty</option><option value="0" <?= !$driver['on_duty'] ? 'selected' : '' ?>>Off duty</option></select></label>
-                <button class="button button-primary bg-blue-700 text-white" type="submit">Save driver</button>
-              </form>
-            </article>
-            <?php endforeach; ?>
+          <section class="metrics-grid manager-metrics driver-summary" aria-label="Driver summary">
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Total Drivers</span><span class="metric-icon icon-blue">♙</span></span><span class="metric-value"><?= h($totalDrivers) ?></span><span class="metric-foot">Fleet roster</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">On Duty</span><span class="metric-icon icon-green">✓</span></span><span class="metric-value"><?= h($onDutyDrivers) ?></span><span class="metric-foot"><span class="status-dot dot-green"></span>Available for work</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Off Duty</span><span class="metric-icon icon-blue">◷</span></span><span class="metric-value"><?= h($offDutyDrivers) ?></span><span class="metric-foot">Not currently on duty</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Unassigned Drivers</span><span class="metric-icon icon-amber">↔</span></span><span class="metric-value"><?= h($unassignedDrivers) ?></span><span class="metric-foot">No vehicle assigned</span></article>
+          </section>
+          <section class="panel driver-roster" aria-label="Driver management">
+            <div class="panel-heading">
+              <div><h2>Driver roster</h2><p>Search drivers and manage duty status or vehicle assignment</p></div>
+              <span class="count-pill"><?= h($totalDrivers) ?> drivers</span>
+            </div>
+            <div class="table-scroll driver-table-scroll">
+              <table class="driver-table">
+                <thead><tr><th>DRIVER NAME</th><th>ASSIGNED VEHICLE</th><th>CURRENT ASSIGNMENT</th><th>DUTY STATUS</th><th>QUICK ACTION</th></tr></thead>
+                <tbody id="driver-list">
+                  <?php foreach ($drivers as $driver): ?>
+                  <?php $driverSearch = strtolower(implode(' ', array_filter([$driver['name'], $driver['vehicle_code'], $driver['assignment'], $driver['on_duty'] ? 'on duty' : 'off duty']))); ?>
+                  <tr class="search-item" data-driver-row data-driver-id="<?= h($driver['id']) ?>" data-driver-name="<?= h($driver['name']) ?>" data-driver-duty="<?= h($driver['on_duty'] ? '1' : '0') ?>" data-driver-vehicle="<?= h($driver['vehicle_code'] ?? '') ?>" data-search="<?= h($driverSearch) ?>">
+                    <td><span class="driver-roster-name"><?= h($driver['name']) ?></span><small>Driver #<?= h($driver['id']) ?></small></td>
+                    <td><?= $driver['vehicle_code'] ? '<span class="driver-vehicle-code">' . h($driver['vehicle_code']) . '</span>' : '<span class="assignment-muted">Unassigned</span>' ?></td>
+                    <td><?= $driver['assignment'] ? h($driver['assignment']) : '<span class="assignment-muted">Available for assignment</span>' ?></td>
+                    <td><span class="driver-duty <?= $driver['on_duty'] ? 'driver-duty-on' : 'driver-duty-off' ?>"><i></i><?= $driver['on_duty'] ? 'On duty' : 'Off duty' ?></span></td>
+                    <td><button class="driver-edit-button" type="button" data-edit-driver="<?= h($driver['id']) ?>">Edit / Details</button></td>
+                  </tr>
+                  <?php endforeach; ?>
+                  <tr class="driver-empty-row" id="driver-empty" hidden><td colspan="5">No drivers match your search.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="driver-table-footer"><span>Showing <strong id="driver-visible-count"><?= h($totalDrivers) ?></strong> of <?= h($totalDrivers) ?> drivers</span><span>Use the dashboard search to filter this list</span></div>
           </section>
           <?php elseif ($activeView === 'maintenance'): ?>
           <section class="maintenance-board" aria-label="Maintenance issue tracking">
@@ -604,7 +658,7 @@ $views = [
                   <span class="issue-card-copy"><span class="issue-card-top"><strong>Issue #<?= h($issue['id']) ?> · <?= h($issue['vehicle_or_trip']) ?></strong><span class="issue-status status-awaiting">Awaiting Review</span></span>
                     <span class="issue-description"><?= h($issue['description']) ?></span>
                     <span class="issue-card-meta">Reported <?= h($issueDate) ?><?= $issue['issue_type'] ? ' · ' . h($issue['issue_type']) : '' ?></span></span>
-                  <?php if ($issue['is_sample']): ?><span class="issue-sample-tag">Mock-up data</span><?php endif; ?>
+                 
                 </button>
                 <?php endforeach; ?>
               </div>
@@ -627,7 +681,7 @@ $views = [
                   <span class="issue-card-copy"><span class="issue-card-top"><strong>Issue #<?= h($issue['id']) ?> · <?= h($issue['vehicle_or_trip']) ?></strong><span class="issue-status <?= $isDelayed ? 'status-delayed' : 'status-progress' ?>"><?= $isDelayed ? 'Delayed' : 'In Progress' ?></span></span>
                     <span class="issue-description"><?= h($issue['description']) ?></span>
                     <span class="issue-card-meta">Reported <?= h($issueDate) ?><?= $issue['due_date'] ? ' · Due ' . h(gmdate('M j, Y', strtotime($issue['due_date'] . ' UTC'))) : '' ?></span></span>
-                  <?php if ($issue['is_sample']): ?><span class="issue-sample-tag">Mock-up data</span><?php endif; ?>
+                 
                 </button>
                 <?php endforeach; ?>
               </div>
@@ -650,7 +704,7 @@ $views = [
                   <span class="issue-card-copy"><span class="issue-card-top"><strong>Issue #<?= h($issue['id']) ?> · <?= h($issue['vehicle_or_trip']) ?></strong><span class="issue-status status-completed">Completed</span></span>
                     <span class="issue-description"><?= h($issue['description']) ?></span>
                     <span class="issue-card-meta">Reported <?= h($issueDate) ?><?= $issue['issue_type'] ? ' · ' . h($issue['issue_type']) : '' ?></span></span>
-                  <?php if ($issue['is_sample']): ?><span class="issue-sample-tag">Mock-up data</span><?php endif; ?>
+                  
                 </button>
                 <?php endforeach; ?>
               </div>
@@ -786,6 +840,24 @@ $views = [
         <label for="issue-detail-notes">Maintenance notes</label>
         <textarea id="issue-detail-notes" name="maintenance_notes" rows="3" maxlength="3000" placeholder="Add work notes..."></textarea>
         <button class="button button-primary bg-blue-700 text-white" type="submit">Save issue</button>
+      </form>
+    </dialog>
+    <dialog class="detail-dialog driver-detail-dialog" id="driver-detail-dialog">
+      <div class="dialog-top"><span class="dialog-icon">♙</span><button class="dialog-close" type="button" aria-label="Close dialog">×</button></div>
+      <h2 id="driver-detail-title">Driver details</h2>
+      <p class="dialog-intro">Update this driver's duty status and assigned vehicle.</p>
+      <form id="driver-detail-form">
+        <input type="hidden" name="id">
+        <label for="driver-duty-status">Duty status</label>
+        <select id="driver-duty-status" name="on_duty"><option value="1">On duty</option><option value="0">Off duty</option></select>
+        <label for="driver-vehicle">Assigned vehicle</label>
+        <select id="driver-vehicle" name="vehicle_code">
+          <option value="">Unassigned</option>
+          <?php foreach ($vehicles as $vehicle): ?>
+          <option value="<?= h($vehicle['vehicle_code']) ?>"><?= h($vehicle['vehicle_code']) ?> · <?= h($vehicle['make']) ?></option>
+          <?php endforeach; ?>
+        </select>
+        <button class="button button-primary bg-blue-700 text-white" type="submit">Save driver</button>
       </form>
     </dialog>
     <script src="app.js"></script>

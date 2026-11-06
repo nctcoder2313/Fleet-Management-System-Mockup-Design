@@ -590,3 +590,75 @@ tbody td { font-size: 12px; }
   .issue-detail-meta { grid-template-columns: minmax(0, 1fr); }
   .issue-detail-meta > div:last-child { grid-column: auto; }
 }
+
+.driver-summary { margin-bottom: 16px; }
+.driver-summary .metric-card { min-height: 108px; }
+.driver-roster { margin-bottom: 4px; }
+.driver-table { min-width: 760px; white-space: normal; }
+.driver-table thead th { height: 40px; }
+.driver-table tbody td { height: 64px; line-height: 1.4; }
+.driver-table tbody td:first-child { min-width: 170px; }
+.driver-roster-name { display: block; color: #0f172a; font-weight: 650; }
+.driver-table tbody td:first-child small { display: block; margin-top: 3px; color: #64748b; font-size: 10px; }
+.driver-vehicle-code { color: #334155; font-weight: 600; }
+.driver-duty { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.driver-duty i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.driver-duty-on { color: #15803d; background: #f0fdf4; }
+.driver-duty-off { color: #1d4ed8; background: #eff6ff; }
+.driver-edit-button { padding: 6px 9px; border: 1px solid #dbeafe; border-radius: 5px; color: #1d4ed8; background: #f8fbff; font-size: 10px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.driver-edit-button:hover { border-color: #93c5fd; background: #eff6ff; }
+.driver-edit-button:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+.driver-empty-row td { color: #64748b; text-align: center; }
+.driver-table-footer { display: flex; justify-content: space-between; gap: 10px; padding: 12px 18px; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 10px; }
+.driver-table-footer strong { color: #334155; }
+.driver-detail-dialog { width: min(460px, calc(100vw - 30px)); }
+#driver-detail-form { display: grid; gap: 8px; }
+#driver-detail-form label { margin-top: 4px; color: #475569; font-size: 10px; font-weight: 600; }
+#driver-detail-form select { width: 100%; min-height: 38px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 5px; outline: 0; color: #0f172a; background: #fff; font-size: 11px; }
+#driver-detail-form select:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px #dbeafe; }
+
+.fleet-summary { grid-template-columns: repeat(6, minmax(0, 1fr)); margin-bottom: 16px; }
+.fleet-roster { margin-bottom: 4px; }
+.fleet-filter-toolbar { padding-bottom: 0; }
+.fleet-filter-tabs { width: 100%; flex-wrap: wrap; gap: 12px 19px; }
+.fleet-filter-tabs .filter-tab { display: flex; padding-top: 2px; font-size: 11px; }
+.fleet-filter-tabs .filter-tab:nth-child(4) { display: flex; }
+.fleet-vehicle-grid { padding: 14px; }
+.fleet-vehicle-card .panel-heading { align-items: flex-start; }
+.fleet-status-badge { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.fleet-status-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.fleet-status-available { color: #15803d; background: #f0fdf4; }
+.fleet-status-trip { color: #1d4ed8; background: #eff6ff; }
+.fleet-status-maintenance { color: #a16207; background: #fffbeb; }
+.fleet-status-offline { color: #64748b; background: #f1f5f9; }
+.fleet-vehicle-summary { display: grid; gap: 9px; margin: 0 18px 14px; padding: 11px; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fbff; }
+.fleet-vehicle-summary > div { min-width: 0; display: grid; grid-template-columns: 116px minmax(0, 1fr); align-items: baseline; gap: 8px; }
+.fleet-vehicle-summary span { color: #64748b; font-size: 10px; }
+.fleet-vehicle-summary strong { overflow-wrap: anywhere; color: #334155; font-size: 11px; font-weight: 600; }
+.fleet-empty-state { grid-column: 1 / -1; margin: 0; padding: 22px 10px; color: #64748b; font-size: 12px; text-align: center; }
+
+@media (max-width: 600px) {
+  .driver-table-footer { align-items: flex-start; flex-direction: column; padding: 11px 13px; }
+  .fleet-vehicle-grid { padding: 10px; }
+  .fleet-filter-tabs { gap: 8px 13px; }
+  .fleet-filter-tabs .filter-tab { font-size: 10px; }
+  .fleet-vehicle-summary { margin-right: 13px; margin-left: 13px; }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.brand-logo {
+  display: block;
+  width: 170px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+

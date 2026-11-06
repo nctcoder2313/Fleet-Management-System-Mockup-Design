@@ -91,6 +91,13 @@ while ($weekCursor <= $monthEnd) {
 $vehicleStats = $db->query(
     'SELECT status, COUNT(*) AS count FROM vehicles GROUP BY status'
 )->fetchAll(PDO::FETCH_ASSOC);
+$unassignedVehicleCount = 0;
+if ($activeView === 'fleet') {
+    // Unassigned is a driver relationship, independent from the vehicle's availability status.
+    $unassignedVehicleCount = (int) $db->query(
+        "SELECT COUNT(*) FROM vehicles WHERE driver_name IS NULL OR trim(driver_name) = ''"
+    )->fetchColumn();
+}
 
 // This manager view uses operational data only; financial and admin records are never queried here.
 $vehicles = $db->query(
@@ -382,6 +389,8 @@ $driverCounts = $db->query(
 )->fetch(PDO::FETCH_ASSOC);
 $onDutyDrivers = (int) $driverCounts['on_duty'];
 $totalDrivers = (int) $driverCounts['total'];
+$offDutyDrivers = $totalDrivers - $onDutyDrivers;
+$unassignedDrivers = count(array_filter($drivers, static fn (array $driver): bool => empty($driver['vehicle_code'])));
 $pendingMaintenance = count($maintenanceItems);
 
 require __DIR__ . '/dashboard.php';

@@ -228,19 +228,57 @@ try {
     if (($payload['action'] ?? '') === 'update-driver') {
         $driverId = filter_var($payload['id'] ?? null, FILTER_VALIDATE_INT);
         $onDuty = (string) ($payload['on_duty'] ?? '');
-        if (!$driverId || !in_array($onDuty, ['0', '1'], true)) {
-            respond(422, ['error' => 'Choose a valid driver duty status.']);
+        $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
+        if (!$driverId || !in_array($onDuty, ['0', '1'], true) || strlen($vehicleCode) > 40) {
+            respond(422, ['error' => 'Choose a valid driver duty status and vehicle assignment.']);
         }
-        $statement = $db->prepare('UPDATE drivers SET on_duty = :on_duty WHERE id = :id');
-        $statement->execute(['on_duty' => (int) $onDuty, 'id' => $driverId]);
-        if ($statement->rowCount() === 0) {
-            $exists = $db->prepare('SELECT 1 FROM drivers WHERE id = :id');
-            $exists->execute(['id' => $driverId]);
-            if (!$exists->fetchColumn()) {
-                respond(404, ['error' => 'That driver was not found.']);
+        $driverQuery = $db->prepare('SELECT name FROM drivers WHERE id = :id');
+        $driverQuery->execute(['id' => $driverId]);
+        $driverName = $driverQuery->fetchColumn();
+        if ($driverName === false) {
+            respond(404, ['error' => 'That driver was not found.']);
+        }
+
+        if ($vehicleCode !== '') {
+            $vehicleQuery = $db->prepare('SELECT 1 FROM vehicles WHERE vehicle_code = :vehicle_code');
+            $vehicleQuery->execute(['vehicle_code' => $vehicleCode]);
+            if (!$vehicleQuery->fetchColumn()) {
+                respond(422, ['error' => 'Choose an existing vehicle for this driver.']);
             }
         }
-        respond(200, ['message' => 'Driver updated.']);
+
+        $db->beginTransaction();
+        try {
+            $statement = $db->prepare('UPDATE drivers SET on_duty = :on_duty WHERE id = :id');
+            $statement->execute(['on_duty' => (int) $onDuty, 'id' => $driverId]);
+
+            // Keep the existing vehicle-to-driver relationship in sync when a manager changes assignment.
+            $clearAssignment = $db->prepare('UPDATE vehicles SET driver_name = NULL WHERE driver_name = :driver_name');
+            $clearAssignment->execute(['driver_name' => $driverName]);
+            if ($vehicleCode !== '') {
+                $nameParts = preg_split('/\s+/', trim($driverName), -1, PREG_SPLIT_NO_EMPTY);
+                $initials = implode('', array_map(
+                    static fn (string $part): string => substr($part, 0, 1),
+                    array_slice($nameParts, 0, 2)
+                ));
+                $assignVehicle = $db->prepare(
+                    'UPDATE vehicles SET driver_name = :driver_name, driver_initials = :driver_initials
+                     WHERE vehicle_code = :vehicle_code'
+                );
+                $assignVehicle->execute([
+                    'driver_name' => $driverName,
+                    'driver_initials' => $initials,
+                    'vehicle_code' => $vehicleCode,
+                ]);
+            }
+            $db->commit();
+        } catch (Throwable $exception) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $exception;
+        }
+        respond(200, ['message' => 'Driver and vehicle assignment updated.']);
     }
 
     if (($payload['action'] ?? '') === 'update-maintenance') {

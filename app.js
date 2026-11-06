@@ -1,15 +1,24 @@
 const vehicleRows = [...document.querySelectorAll("#vehicle-rows tr")];
+const vehicleCards = [...document.querySelectorAll("[data-vehicle-card]")];
+const vehicleFilterButtons = [...document.querySelectorAll("[data-vehicle-filter]")];
 const tripItems = [...document.querySelectorAll(".trip-item")];
+const driverRows = [...document.querySelectorAll("[data-driver-row]")];
 const filterTabs = [...document.querySelectorAll("[data-table-filter]")];
 const searchInput = document.querySelector("#global-search");
 const emptyState = document.querySelector("#fleet-empty");
 const tripsEmptyState = document.querySelector("#trips-empty");
+const driverEmptyState = document.querySelector("#driver-empty");
+const driverVisibleCount = document.querySelector("#driver-visible-count");
+const fleetVehicleEmpty = document.querySelector("#fleet-vehicle-empty");
+const fleetVehicleVisibleCount = document.querySelector("#fleet-vehicle-visible-count");
 const tableCount = document.querySelector("#table-count");
 const toast = document.querySelector("#toast");
 const detailDialog = document.querySelector("#detail-dialog");
 const issueDialog = document.querySelector("#issue-dialog");
 const issueDetailDialog = document.querySelector("#issue-detail-dialog");
+const driverDetailDialog = document.querySelector("#driver-detail-dialog");
 let activeFilter = "all";
+let activeVehicleFilter = "all";
 let toastTimeout;
 
 function updateFleet() {
@@ -36,8 +45,27 @@ function updateFleet() {
   if (tripsEmptyState) tripsEmptyState.hidden = visibleTrips > 0;
   if (tableCount) tableCount.textContent = `Showing ${visibleCount} of ${tableCount.dataset.total} vehicles`;
   document.querySelectorAll(".search-item").forEach((item) => {
-    item.hidden = Boolean(query) && !item.dataset.search.includes(query);
+    if (!item.matches("[data-vehicle-card]")) {
+      item.hidden = Boolean(query) && !item.dataset.search.includes(query);
+    }
   });
+  let visibleVehicles = 0;
+  vehicleCards.forEach((card) => {
+    const matchesStatus = activeVehicleFilter === "all" ||
+      (activeVehicleFilter === "unassigned"
+        ? card.dataset.driverAssigned === "0"
+        : card.dataset.vehicleStatus === activeVehicleFilter);
+    const matchesSearch = !query || card.dataset.search.includes(query);
+    card.hidden = !matchesStatus || !matchesSearch;
+    if (!card.hidden) visibleVehicles += 1;
+  });
+  if (fleetVehicleEmpty) fleetVehicleEmpty.hidden = visibleVehicles > 0;
+  if (fleetVehicleVisibleCount) fleetVehicleVisibleCount.textContent = String(visibleVehicles);
+  if (driverRows.length > 0) {
+    const visibleDrivers = driverRows.filter((row) => !row.hidden).length;
+    if (driverVisibleCount) driverVisibleCount.textContent = String(visibleDrivers);
+    if (driverEmptyState) driverEmptyState.hidden = visibleDrivers > 0;
+  }
 }
 
 function setFleetFilter(filter) {
@@ -67,6 +95,17 @@ function openDetails(value) {
 }
 
 filterTabs.forEach((tab) => tab.addEventListener("click", () => setFleetFilter(tab.dataset.tableFilter)));
+vehicleFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeVehicleFilter = button.dataset.vehicleFilter;
+    vehicleFilterButtons.forEach((filterButton) => {
+      const selected = filterButton === button;
+      filterButton.classList.toggle("active", selected);
+      filterButton.setAttribute("aria-pressed", String(selected));
+    });
+    updateFleet();
+  });
+});
 searchInput?.addEventListener("input", updateFleet);
 document.querySelectorAll("[data-detail]").forEach((button) => {
   button.addEventListener("click", () => openDetails(button.dataset.detail));
@@ -140,6 +179,18 @@ document.querySelectorAll(".issue-card").forEach((card) => {
   });
 });
 
+document.querySelectorAll("[data-edit-driver]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const driver = button.closest("[data-driver-row]").dataset;
+    const form = document.querySelector("#driver-detail-form");
+    document.querySelector("#driver-detail-title").textContent = driver.driverName;
+    form.elements.id.value = driver.driverId;
+    form.elements.on_duty.value = driver.driverDuty;
+    form.elements.vehicle_code.value = driver.driverVehicle;
+    driverDetailDialog.showModal();
+  });
+});
+
 document.querySelectorAll(".dialog-close").forEach((button) => {
   button.addEventListener("click", () => button.closest("dialog").close());
 });
@@ -209,6 +260,36 @@ document.querySelector("#issue-detail-form").addEventListener("submit", async (e
     window.setTimeout(() => window.location.reload(), 650);
   } catch (error) {
     showToast(error.message || "Issue update failed. Please try again.");
+  } finally {
+    submitButton.disabled = false;
+  }
+});
+
+document.querySelector("#driver-detail-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector('[type="submit"]');
+  submitButton.disabled = true;
+  const data = new FormData(form);
+
+  try {
+    const response = await fetch("api.php", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "update-driver",
+        id: data.get("id"),
+        on_duty: data.get("on_duty"),
+        vehicle_code: data.get("vehicle_code")
+      })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Driver update failed.");
+    showToast(result.message);
+    driverDetailDialog.close();
+    window.setTimeout(() => window.location.reload(), 650);
+  } catch (error) {
+    showToast(error.message || "Driver update failed. Please try again.");
   } finally {
     submitButton.disabled = false;
   }

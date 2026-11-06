@@ -24,7 +24,7 @@ creates `fleet.sqlite` and loads the sample data from `schema.sql`.
 
 - Use the sidebar to switch between Overview, Fleet Status, Trips & Assignments,
   Drivers, Maintenance, Reports, and Settings workspaces.
-- Overview is read-only. Search and edit vehicle, trip, driver duty, and
+- Overview is read-only. Search and edit vehicle, trip, driver duty and vehicle assignments, and
   maintenance records in their respective workspaces; changes are saved to SQLite.
 - Review monthly utilization and fuel trends by Monday–Sunday week, alongside
   weekly trip-status distribution and maintenance due by department. Reporting uses UTC.
