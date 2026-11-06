@@ -12,6 +12,15 @@ $totalVehicles = array_sum($vehicleCounts);
 $unassignedVehicleCount = (int) $unassignedVehicleCount;
 $onDutyDrivers = (int) $onDutyDrivers;
 $totalDrivers = (int) $totalDrivers;
+$tripCounts = ['in_progress' => 0, 'delayed' => 0, 'upcoming' => 0, 'completed' => 0];
+foreach ($allTrips as $trip) {
+    if ($trip['status'] === 'active') {
+        $tripCounts[(int) $trip['delay_minutes'] > 0 ? 'delayed' : 'in_progress']++;
+    } elseif (isset($tripCounts[$trip['status']])) {
+        $tripCounts[$trip['status']]++;
+    }
+}
+$totalTrips = array_sum($tripCounts);
 $openAlerts = count($alerts);
 $urgentAlerts = count(array_filter($alerts, static fn ($alert) => $alert['severity'] === 'urgent'));
 $activeTrips = count($trips);
@@ -118,9 +127,10 @@ $views = [
   </head>
   <body class="text-slate-900">
     <div class="app-shell min-h-screen">
-     <a class="brand" href="?view=overview" aria-label="Fleet Management home">
-  <img class="brand-logo" src="assets/paragon.webp" alt="Paragon Communications Corp.">
-</a>
+        <aside class="sidebar bg-white" aria-label="Main navigation">
+          <a class="brand" href="?view=overview" aria-label="Fleet Management home">
+            <img class="brand-logo" src="assets/paragon.webp" alt="Paragon Communications Corp.">
+        </a>
 
         <div class="workspace-label">MANAGER WORKSPACE</div>
         <nav class="nav-list">
@@ -545,7 +555,10 @@ $views = [
                 <button class="filter-tab" type="button" data-vehicle-filter="unassigned" aria-pressed="false">Unassigned <span><?= h($unassignedVehicleCount) ?></span></button>
               </div>
             </div>
-            <div class="workspace-grid fleet-vehicle-grid" id="fleet-vehicle-list">
+            <div class="table-scroll fleet-table-scroll" id="fleet-vehicle-list">
+              <table class="fleet-vehicle-table">
+                <thead><tr><th>VEHICLE</th><th>STATUS</th><th>DRIVER</th><th>LOCATION</th></tr></thead>
+                <tbody>
             <?php foreach ($vehicles as $vehicle): ?>
             <?php
             $vehicleStatusLabels = ['active' => 'On Trip', 'idle' => 'Available', 'maintenance' => 'In Maintenance', 'offline' => 'Offline'];
@@ -557,16 +570,22 @@ $views = [
                 $hasAssignedDriver ? '' : 'unassigned',
             ])));
             ?>
-            <article class="panel workspace-card search-item fleet-vehicle-card" data-vehicle-card data-vehicle-status="<?= h($vehicle['status']) ?>" data-driver-assigned="<?= $hasAssignedDriver ? '1' : '0' ?>" data-search="<?= h($vehicleSearch) ?>">
-              <div class="panel-heading">
-                <div><h2><?= h($vehicle['vehicle_code']) ?></h2><p><?= h($vehicle['make']) ?> · <?= h($vehicle['vehicle_type']) ?></p></div>
-                <span class="fleet-status-badge <?= h($vehicleStatusClasses[$vehicle['status']]) ?>"><i></i><?= h($vehicleStatusLabels[$vehicle['status']]) ?></span>
-              </div>
-              <div class="fleet-vehicle-summary">
-                <div><span>Assigned driver</span><strong><?= $hasAssignedDriver ? h($vehicle['driver_name']) : 'Unassigned' ?></strong></div>
-                <div><span>Current assignment</span><strong><?= $vehicle['assignment'] !== '' ? h($vehicle['assignment']) : 'No current assignment' ?></strong></div>
-              </div>
-              <form class="record-form" data-record-form>
+            <tr class="search-item fleet-vehicle-row" data-fleet-row data-vehicle-status="<?= h($vehicle['status']) ?>" data-driver-assigned="<?= $hasAssignedDriver ? '1' : '0' ?>" data-search="<?= h($vehicleSearch) ?>" aria-expanded="false" aria-controls="vehicle-details-<?= h($vehicle['vehicle_code']) ?>" tabindex="0">
+              <td><span class="fleet-vehicle-id"><?= h($vehicle['vehicle_code']) ?></span><span class="fleet-vehicle-description"><?= h($vehicle['make']) ?> · <?= h($vehicle['vehicle_type']) ?></span></td>
+              <td><span class="fleet-status-badge <?= h($vehicleStatusClasses[$vehicle['status']]) ?>"><i></i><?= h($vehicleStatusLabels[$vehicle['status']]) ?></span></td>
+              <td><span class="fleet-driver-name"><?= $hasAssignedDriver ? h($vehicle['driver_name']) : 'Unassigned' ?></span><span class="fleet-driver-caption"><?= $hasAssignedDriver ? 'Assigned driver' : 'No driver assigned' ?></span></td>
+              <td><span class="fleet-location"><?= h($vehicle['location']) ?></span></td>
+            </tr>
+            <tr class="fleet-details-row" data-fleet-details data-search="<?= h($vehicleSearch) ?>" hidden>
+              <td colspan="4">
+                <div class="fleet-details-content" id="vehicle-details-<?= h($vehicle['vehicle_code']) ?>">
+                  <div class="fleet-details-grid">
+                    <div><span>Current assignment</span><strong><?= $vehicle['assignment'] !== '' ? h($vehicle['assignment']) : 'No current assignment' ?></strong></div>
+                    <div><span>Location</span><strong><?= h($vehicle['location']) ?></strong></div>
+                    <div><span>Last service</span><strong><?= h(date('M j, Y', strtotime($vehicle['last_service']))) ?></strong></div>
+                    <div><span>Fuel level</span><strong><?= $vehicle['fuel_level'] === null ? 'Not reported' : h($vehicle['fuel_level']) . '%' ?></strong></div>
+                  </div>
+                  <form class="record-form fleet-vehicle-form" data-record-form>
                 <input type="hidden" name="action" value="update-vehicle">
                 <input type="hidden" name="vehicle_code" value="<?= h($vehicle['vehicle_code']) ?>">
                 <label>Make<input name="make" maxlength="80" required value="<?= h($vehicle['make']) ?>"></label>
@@ -578,14 +597,25 @@ $views = [
                 <label>Last service<input name="last_service" type="date" required value="<?= h($vehicle['last_service']) ?>"></label>
                 <label>Fuel level (%)<input name="fuel_level" type="number" min="0" max="100" placeholder="Not reported" value="<?= h($vehicle['fuel_level'] ?? '') ?>"><small class="field-help">Last updated: <?= $vehicle['fuel_level_updated_at'] !== null ? h(gmdate('M j, Y g:i A', strtotime($vehicle['fuel_level_updated_at'])) . ' UTC') : 'Update time not recorded' ?></small></label>
                 <button class="button button-primary bg-blue-700 text-white" type="submit">Save vehicle</button>
-              </form>
-            </article>
+                  </form>
+                </div>
+              </td>
+            </tr>
             <?php endforeach; ?>
-            <p class="fleet-empty-state" id="fleet-vehicle-empty" hidden>No vehicles match this filter.</p>
+            <tr class="fleet-empty-row" id="fleet-vehicle-empty" hidden><td colspan="4">No vehicles match this filter.</td></tr>
+                </tbody>
+              </table>
             </div>
             <div class="driver-table-footer"><span>Showing <strong id="fleet-vehicle-visible-count"><?= h($totalVehicles) ?></strong> of <?= h($totalVehicles) ?> vehicles</span><span>Unassigned is based on driver assignment, not vehicle status</span></div>
           </section>
           <?php elseif ($activeView === 'trips'): ?>
+          <section class="metrics-grid trip-summary" aria-label="Trip status summary">
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Total Trips</span><span class="metric-icon icon-blue">↗</span></span><span class="metric-value"><?= h($totalTrips) ?></span><span class="metric-foot">All recorded trips</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">In Progress</span><span class="metric-icon icon-blue">⇢</span></span><span class="metric-value"><?= h($tripCounts['in_progress']) ?></span><span class="metric-foot">Active · no reported delay</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Delayed</span><span class="metric-icon icon-amber">!</span></span><span class="metric-value"><?= h($tripCounts['delayed']) ?></span><span class="metric-foot">Active · delay reported</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Upcoming</span><span class="metric-icon icon-violet">◷</span></span><span class="metric-value"><?= h($tripCounts['upcoming']) ?></span><span class="metric-foot">Not yet started</span></article>
+            <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Completed</span><span class="metric-icon icon-green">✓</span></span><span class="metric-value"><?= h($tripCounts['completed']) ?></span><span class="metric-foot">Finished trips</span></article>
+          </section>
           <section class="workspace-grid" aria-label="Editable trip records">
             <?php foreach ($allTrips as $trip): ?>
             <article class="panel workspace-card search-item" data-search="<?= h(strtolower(implode(' ', $trip))) ?>">

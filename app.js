@@ -1,5 +1,5 @@
 const vehicleRows = [...document.querySelectorAll("#vehicle-rows tr")];
-const vehicleCards = [...document.querySelectorAll("[data-vehicle-card]")];
+const fleetVehicleRows = [...document.querySelectorAll("[data-fleet-row]")];
 const vehicleFilterButtons = [...document.querySelectorAll("[data-vehicle-filter]")];
 const tripItems = [...document.querySelectorAll(".trip-item")];
 const driverRows = [...document.querySelectorAll("[data-driver-row]")];
@@ -45,19 +45,23 @@ function updateFleet() {
   if (tripsEmptyState) tripsEmptyState.hidden = visibleTrips > 0;
   if (tableCount) tableCount.textContent = `Showing ${visibleCount} of ${tableCount.dataset.total} vehicles`;
   document.querySelectorAll(".search-item").forEach((item) => {
-    if (!item.matches("[data-vehicle-card]")) {
+    if (!item.matches("[data-fleet-row]")) {
       item.hidden = Boolean(query) && !item.dataset.search.includes(query);
     }
   });
   let visibleVehicles = 0;
-  vehicleCards.forEach((card) => {
+  fleetVehicleRows.forEach((row) => {
     const matchesStatus = activeVehicleFilter === "all" ||
       (activeVehicleFilter === "unassigned"
-        ? card.dataset.driverAssigned === "0"
-        : card.dataset.vehicleStatus === activeVehicleFilter);
-    const matchesSearch = !query || card.dataset.search.includes(query);
-    card.hidden = !matchesStatus || !matchesSearch;
-    if (!card.hidden) visibleVehicles += 1;
+        ? row.dataset.driverAssigned === "0"
+        : row.dataset.vehicleStatus === activeVehicleFilter);
+    const matchesSearch = !query || row.dataset.search.includes(query);
+    row.hidden = !matchesStatus || !matchesSearch;
+    const detailsRow = row.nextElementSibling;
+    if (detailsRow?.matches("[data-fleet-details]")) {
+      detailsRow.hidden = row.hidden || row.getAttribute("aria-expanded") !== "true";
+    }
+    if (!row.hidden) visibleVehicles += 1;
   });
   if (fleetVehicleEmpty) fleetVehicleEmpty.hidden = visibleVehicles > 0;
   if (fleetVehicleVisibleCount) fleetVehicleVisibleCount.textContent = String(visibleVehicles);
@@ -104,6 +108,23 @@ vehicleFilterButtons.forEach((button) => {
       filterButton.setAttribute("aria-pressed", String(selected));
     });
     updateFleet();
+  });
+});
+fleetVehicleRows.forEach((row) => {
+  const toggleDetails = () => {
+    if (row.hidden) return;
+    const detailsRow = row.nextElementSibling;
+    if (!detailsRow?.matches("[data-fleet-details]")) return;
+    const expanded = row.getAttribute("aria-expanded") === "true";
+    row.setAttribute("aria-expanded", String(!expanded));
+    detailsRow.hidden = expanded;
+  };
+  row.addEventListener("click", toggleDetails);
+  row.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleDetails();
+    }
   });
 });
 searchInput?.addEventListener("input", updateFleet);
