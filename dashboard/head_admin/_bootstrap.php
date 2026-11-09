@@ -21,11 +21,9 @@ $roleLabels = [
     'head_admin' => 'Head Admin',
     'admin' => 'Admin',
     'manager' => 'Manager',
-    'user' => 'User',
     'accounting' => 'Accounting',
-    'driver' => 'Driver',
 ];
-$manageableRoles = ['admin', 'manager', 'user', 'accounting', 'driver'];
+$manageableRoles = ['admin', 'manager', 'accounting'];
 $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 
 if ($previewMode) {
@@ -34,10 +32,9 @@ if ($previewMode) {
             ['id' => 1, 'name' => 'Alex Morgan', 'email' => 'alex.morgan@northstar.example', 'role' => 'head_admin', 'status' => 'active', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-180 days'))],
             ['id' => 2, 'name' => 'Jamie Rivera', 'email' => 'jamie.rivera@northstar.example', 'role' => 'admin', 'status' => 'active', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-120 days'))],
             ['id' => 3, 'name' => 'Taylor Santos', 'email' => 'taylor.santos@northstar.example', 'role' => 'manager', 'status' => 'active', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-90 days'))],
-            ['id' => 4, 'name' => 'Casey Reyes', 'email' => 'casey.reyes@northstar.example', 'role' => 'user', 'status' => 'active', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-45 days'))],
+            ['id' => 4, 'name' => 'Casey Reyes', 'email' => 'casey.reyes@northstar.example', 'role' => 'accounting', 'status' => 'active', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-45 days'))],
             ['id' => 5, 'name' => 'Jordan Cruz', 'email' => 'jordan.cruz@northstar.example', 'role' => 'accounting', 'status' => 'active', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-30 days'))],
             ['id' => 6, 'name' => 'Avery Brooks', 'email' => 'avery.brooks@northstar.example', 'role' => 'manager', 'status' => 'inactive', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-60 days'))],
-            ['id' => 7, 'name' => 'Morgan Lee', 'email' => 'morgan.lee@northstar.example', 'role' => 'driver', 'status' => 'active', 'password_hash' => password_hash('DemoFleet2026!', PASSWORD_DEFAULT), 'created_at' => date('Y-m-d H:i:s', strtotime('-5 hours'))],
         ];
         $_SESSION['head_admin_preview_data'] = [
             'users' => $demoUsers,
@@ -54,14 +51,17 @@ if ($previewMode) {
                 ['id' => 9002, 'reference' => 'TR-2026-1104-019', 'vehicle_id' => 102, 'driver_name' => 'Miguel Santos', 'origin' => 'Northstar Quezon City Depot', 'destination' => 'Bocaue Distribution Center', 'status' => 'in_progress', 'started_at' => date('Y-m-d H:i:s', strtotime('-40 minutes')), 'ended_at' => null, 'override_reason' => null, 'override_action' => null, 'overridden_by' => null],
             ],
             'pending_requests' => [
-                ['id' => 501, 'requester_id' => 4, 'base_role' => 'user', 'current_role' => 'user', 'requested_role' => 'manager', 'requested_at' => date('Y-m-d H:i:s', strtotime('-2 hours')), 'requester_name' => 'Casey Reyes', 'requester_email' => 'casey.reyes@northstar.example', 'status' => 'PENDING'],
+                ['id' => 501, 'requester_id' => 4, 'base_role' => 'accounting', 'current_role' => 'accounting', 'requested_role' => 'manager', 'requested_at' => date('Y-m-d H:i:s', strtotime('-2 hours')), 'requester_name' => 'Casey Reyes', 'requester_email' => 'casey.reyes@northstar.example', 'status' => 'PENDING'],
                 ['id' => 502, 'requester_id' => 5, 'base_role' => 'accounting', 'current_role' => 'accounting', 'requested_role' => 'admin', 'requested_at' => date('Y-m-d H:i:s', strtotime('-1 day')), 'requester_name' => 'Jordan Cruz', 'requester_email' => 'jordan.cruz@northstar.example', 'status' => 'PENDING'],
+            ],
+            'account_signup_requests' => [
+                ['id' => 601, 'name' => 'Robin Delgado', 'email' => 'robin.delgado@northstar.example', 'requested_role' => 'accounting', 'reason' => 'Needs access to fleet expense reports.', 'status' => 'PENDING', 'requested_at' => date('Y-m-d H:i:s', strtotime('-3 hours'))],
             ],
             'audit_logs' => [
                 ['event_type' => 'ROLE_ACCESS_REQUESTED', 'created_at' => date('Y-m-d H:i:s', strtotime('-15 minutes')), 'actor_name' => 'Casey Reyes', 'details' => '{"requested_role":"manager","request_id":501}'],
                 ['event_type' => 'USER_UPDATED', 'created_at' => date('Y-m-d H:i:s', strtotime('-52 minutes')), 'actor_name' => 'Alex Morgan', 'details' => '{"user_id":3,"change":"Department role confirmed"}'],
                 ['event_type' => 'ROLE_ACCESS_GRANTED', 'created_at' => date('Y-m-d H:i:s', strtotime('-2 hours')), 'actor_name' => 'Alex Morgan', 'details' => '{"requested_role":"accounting","expires_in_hours":8}'],
-                ['event_type' => 'USER_CREATED', 'created_at' => date('Y-m-d H:i:s', strtotime('-5 hours')), 'actor_name' => 'Jamie Rivera', 'details' => '{"role":"driver","user_id":7,"user_name":"Morgan Lee","user_email":"morgan.lee@northstar.example"}'],
+                ['event_type' => 'USER_CREATED', 'created_at' => date('Y-m-d H:i:s', strtotime('-5 hours')), 'actor_name' => 'Jamie Rivera', 'details' => '{"role":"accounting","user_id":7,"user_name":"Morgan Lee","user_email":"morgan.lee@northstar.example"}'],
                 ['event_type' => 'ROLE_ACCESS_DENIED', 'created_at' => date('Y-m-d H:i:s', strtotime('-1 day')), 'actor_name' => 'Jamie Rivera', 'details' => '{"requested_role":"admin","request_id":490}'],
                 ['event_type' => 'USER_REACTIVATED', 'created_at' => date('Y-m-d H:i:s', strtotime('-2 days')), 'actor_name' => 'Alex Morgan', 'details' => '{"user_id":6}'],
                 ['event_type' => 'ROLE_ACCESS_REQUESTED', 'created_at' => date('Y-m-d H:i:s', strtotime('-4 days')), 'actor_name' => 'Jordan Cruz', 'details' => '{"requested_role":"admin","request_id":502}'],
@@ -70,6 +70,30 @@ if ($previewMode) {
             ],
         ];
     }
+
+    if (!isset($_SESSION['head_admin_preview_data']['account_signup_requests'])) {
+        $_SESSION['head_admin_preview_data']['account_signup_requests'] = [
+            ['id' => 601, 'name' => 'Robin Delgado', 'email' => 'robin.delgado@northstar.example', 'requested_role' => 'accounting', 'reason' => 'Needs access to fleet expense reports.', 'status' => 'PENDING', 'requested_at' => date('Y-m-d H:i:s', strtotime('-3 hours'))],
+        ];
+    }
+
+    $previewVehicles = &$_SESSION['head_admin_preview_data']['vehicles'];
+    $previewVehicleModels = ['Ford Transit', 'Hyundai H-100', 'Mitsubishi Fuso', 'Isuzu Traviz', 'Toyota Hilux'];
+    $previewVehicleStatuses = ['idle', 'on_road', 'idle', 'maintenance', 'on_road', 'idle', 'maintenance'];
+    $previewLocations = ['Quezon City Depot', 'Makati, Metro Manila', 'NLEX, Bocaue', 'Caloocan Fleet Garage', 'Laguna Distribution Hub'];
+    $previewVehicleCount = count($previewVehicles);
+    for ($vehicleNumber = $previewVehicleCount + 1; $vehicleNumber <= 51; $vehicleNumber++) {
+        $previewVehicles[] = [
+            'id' => 100 + $vehicleNumber,
+            'name' => $previewVehicleModels[($vehicleNumber - 1) % count($previewVehicleModels)],
+            'plate_number' => sprintf('FLT-%04d', 2000 + $vehicleNumber),
+            'location' => $previewLocations[($vehicleNumber - 1) % count($previewLocations)],
+            'condition_note' => $vehicleNumber % 11 === 0 ? 'Scheduled inspection' : 'No reported issues',
+            'fuel_level_percent' => ($vehicleNumber * 13) % 101,
+            'status' => $previewVehicleStatuses[($vehicleNumber - 1) % count($previewVehicleStatuses)],
+        ];
+    }
+    unset($previewVehicles);
 
     $headAdmin = ['id' => 0, 'name' => 'Preview Account'];
 } else {
@@ -83,6 +107,12 @@ $pendingCount = $previewMode
         static fn (array $request): bool => $request['status'] === 'PENDING'
     ))
     : (int) $pdo->query("SELECT COUNT(*) FROM role_requests WHERE status = 'PENDING'")->fetchColumn();
+$pendingAccountSignupCount = $previewMode
+    ? count(array_filter(
+        $_SESSION['head_admin_preview_data']['account_signup_requests'],
+        static fn (array $request): bool => $request['status'] === 'PENDING'
+    ))
+    : (int) $pdo->query("SELECT COUNT(*) FROM account_signup_requests WHERE status = 'PENDING'")->fetchColumn();
 $flashMessage = $_SESSION['flash_message'] ?? '';
 unset($_SESSION['flash_message']);
 

@@ -61,10 +61,33 @@ if ($previewMode && !isset($_SESSION['admin_maintenance_preview'])) {
 
 if ($previewMode && !isset($_SESSION['admin_preview_vehicles'])) {
     $_SESSION['admin_preview_vehicles'] = [
-        ['id' => 101, 'name' => 'Toyota HiAce', 'plate_number' => 'ABC-2048'],
-        ['id' => 102, 'name' => 'Mitsubishi L300', 'plate_number' => 'XYZ-1982'],
-        ['id' => 103, 'name' => 'Isuzu N-Series', 'plate_number' => 'DEF-1760'],
+        ['id' => 101, 'name' => 'Toyota HiAce', 'plate_number' => 'ABC-2048', 'status' => 'on_road'],
+        ['id' => 102, 'name' => 'Mitsubishi L300', 'plate_number' => 'XYZ-1982', 'status' => 'on_road'],
+        ['id' => 103, 'name' => 'Isuzu N-Series', 'plate_number' => 'DEF-1760', 'status' => 'maintenance'],
     ];
+}
+
+if ($previewMode && count($_SESSION['admin_preview_vehicles']) < 51) {
+    foreach ($_SESSION['admin_preview_vehicles'] as &$previewVehicle) {
+        if (!isset($previewVehicle['status'])) {
+            $previewVehicle['status'] = (int) $previewVehicle['id'] <= 102
+                ? 'on_road'
+                : 'maintenance';
+        }
+    }
+    unset($previewVehicle);
+
+    $adminSampleModels = ['Ford Transit', 'Hyundai H-100', 'Mitsubishi Fuso', 'Isuzu Traviz', 'Toyota Hilux'];
+    $adminSampleStatuses = ['idle', 'on_road', 'idle', 'maintenance', 'on_road', 'idle', 'maintenance'];
+    $adminSampleCount = count($_SESSION['admin_preview_vehicles']);
+    for ($vehicleNumber = $adminSampleCount + 1; $vehicleNumber <= 51; $vehicleNumber++) {
+        $_SESSION['admin_preview_vehicles'][] = [
+            'id' => 100 + $vehicleNumber,
+            'name' => $adminSampleModels[($vehicleNumber - 1) % count($adminSampleModels)],
+            'plate_number' => sprintf('FLT-%04d', 2000 + $vehicleNumber),
+            'status' => $adminSampleStatuses[($vehicleNumber - 1) % count($adminSampleStatuses)],
+        ];
+    }
 }
 
 if ($previewMode && !isset($_SESSION['admin_document_preview'])) {

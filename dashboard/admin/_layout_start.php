@@ -24,16 +24,13 @@ $navItems = $previewMode
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $escape($pageTitle) ?> | Fleet Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="../shared-ui.css">
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-800">
     <div class="min-h-screen lg:flex">
         <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 flex w-72 -translate-x-full flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0">
-            <a href="<?= $escape($adminPageUrl('dashboard.php')) ?>" class="flex h-20 items-center gap-3 border-b border-slate-100 px-6">
-                <span class="grid h-10 w-10 place-items-center rounded-xl bg-blue-700 text-sm font-bold text-white">FM</span>
-                <span>
-                    <span class="block font-bold text-slate-900">Fleet Management</span>
-                    <span class="block text-xs text-slate-500">Admin workspace</span>
-                </span>
+            <a href="<?= $escape($adminPageUrl('dashboard.php')) ?>" class="flex h-20 items-center border-b border-slate-100 px-6">
+                <img src="../../assets/paragon.webp" alt="Paragon Communications Corp." class="h-auto w-40 object-contain">
             </a>
             <nav class="space-y-1 px-4 py-6 text-sm" aria-label="Admin navigation">
                 <?php foreach ($navItems as $key => [$label, $page]): ?>
@@ -43,13 +40,17 @@ $navItems = $previewMode
                 <?php endforeach; ?>
             </nav>
             <div class="mt-auto border-t border-slate-100 p-4">
-                <div class="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                    <span class="grid h-10 w-10 place-items-center rounded-full bg-blue-100 font-bold text-blue-800"><?= $escape(strtoupper(substr((string) $admin['name'], 0, 1))) ?></span>
+                <a href="../../profile.php" class="flex items-center gap-3 rounded-xl bg-slate-50 p-3 transition hover:bg-blue-50">
+                    <?php if (!empty($admin['profile_photo'])): ?>
+                        <img class="h-10 w-10 rounded-full object-cover" src="../../profile-photo.php" alt="">
+                    <?php else: ?>
+                        <span class="grid h-10 w-10 place-items-center rounded-full bg-blue-100 font-bold text-blue-800"><?= $escape(strtoupper(substr((string) $admin['name'], 0, 1))) ?></span>
+                    <?php endif; ?>
                     <span class="min-w-0">
                         <span class="block truncate text-sm font-semibold"><?= $escape($admin['name']) ?></span>
                         <span class="block text-xs text-slate-500">Admin</span>
                     </span>
-                </div>
+                </a>
             </div>
         </aside>
         <div id="sidebar-backdrop" class="fixed inset-0 z-20 hidden bg-slate-950/40 lg:hidden"></div>
@@ -73,7 +74,7 @@ $navItems = $previewMode
                     </form>
                 <?php endif; ?>
             </header>
-            <div class="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+            <div class="dashboard-content mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
                 <?php if ($previewMode): ?>
                     <div role="status" class="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                         Local preview only. Changes are temporary to this browser session and are not saved to the company database.

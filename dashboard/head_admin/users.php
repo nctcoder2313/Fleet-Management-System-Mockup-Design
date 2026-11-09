@@ -476,7 +476,7 @@ require __DIR__ . '/_layout_start.php';
                 Assigned role
                 <select name="role" required class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                     <?php foreach ($manageableRoles as $role): ?>
-                        <option value="<?= $escape($role) ?>" <?= ($editAccount['role'] ?? 'user') === $role ? 'selected' : '' ?>><?= $escape($roleLabels[$role]) ?></option>
+                        <option value="<?= $escape($role) ?>" <?= ($editAccount['role'] ?? 'admin') === $role ? 'selected' : '' ?>><?= $escape($roleLabels[$role]) ?></option>
                     <?php endforeach; ?>
                 </select>
             </label>

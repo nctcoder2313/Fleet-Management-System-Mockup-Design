@@ -1,0 +1,73 @@
+body {
+    background-image: linear-gradient(135deg, #f1f5f9 0%, #eff6ff 52%, #dbeafe 100%);
+    background-attachment: fixed;
+}
+
+.dashboard-content {
+    animation: dashboard-enter 380ms ease-out both;
+}
+
+.dashboard-content .grid > a.rounded-xl.border,
+.dashboard-content .grid > div.rounded-xl.border,
+.dashboard-content .grid > a.rounded-lg.border,
+.dashboard-content > section[class*="rounded-xl"][class*="border"],
+.dashboard-content > section[class*="rounded-2xl"][class*="border"] {
+    position: relative;
+    z-index: 0;
+    background-image: linear-gradient(135deg, rgba(219, 234, 254, 0.48), rgba(255, 255, 255, 0.96) 68%);
+    box-shadow: 0 3px 12px rgba(30, 64, 175, 0.045);
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.dashboard-content .grid > a.rounded-xl.border[class*="border-amber"],
+.dashboard-content .grid > div.rounded-xl.border[class*="border-amber"],
+.dashboard-content > section[class*="border-amber"] {
+    background-image: linear-gradient(135deg, rgba(254, 243, 199, 0.78), rgba(255, 255, 255, 0.96) 76%);
+}
+
+.dashboard-content .grid > a.rounded-xl.border[class*="border-red"],
+.dashboard-content .grid > div.rounded-xl.border[class*="border-red"],
+.dashboard-content > section[class*="border-red"] {
+    background-image: linear-gradient(135deg, rgba(254, 226, 226, 0.72), rgba(255, 255, 255, 0.96) 76%);
+}
+
+.dashboard-content a,
+.dashboard-content button {
+    transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.dashboard-content button:active,
+.dashboard-content a:active {
+    transform: scale(0.985);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .dashboard-content .grid > a.rounded-xl.border:hover,
+    .dashboard-content .grid > div.rounded-xl.border:hover,
+    .dashboard-content .grid > a.rounded-lg.border:hover {
+        z-index: 2;
+        transform: translateY(-3px) scale(1.025);
+        box-shadow: 0 14px 28px rgba(30, 64, 175, 0.13);
+    }
+
+    .dashboard-content a:not(.grid > a):hover,
+    .dashboard-content button:hover {
+        filter: brightness(1.015);
+    }
+}
+
+@keyframes dashboard-enter {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

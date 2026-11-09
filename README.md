@@ -10,8 +10,9 @@ The RBAC layer uses database-backed roles and PHP sessions. It does not trust a 
 4. Apply `database/migrations/20261105_maintenance_logs.sql` after the fleet operations migration to enable persistent Admin maintenance schedules and service logs.
 5. Apply `database/migrations/20261105_geofence_rules.sql` after the fleet operations migration to create Admin geofence and speed-limit rules.
 6. Apply `database/migrations/20261105_vendors_equipment.sql` after the fleet operations migration for accredited vendors and vehicle equipment records.
-7. Configure the database connection. The defaults in `config/database.php` are for a local XAMPP install (`127.0.0.1`, database `fleet_management`, user `root`, blank password). Set `DB_HOST`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in the PHP environment for other configurations.
-8. Create the first `head_admin` account from a local terminal using the one-time CLI bootstrap. It reads a password from the process environment and stores only a PHP password hash; never ship a default account:
+7. Apply `database/migrations/20261106_account_signup_requests.sql` to enable Ainie's public account-request flow and Head Admin approvals.
+8. Configure the database connection. The defaults in `config/database.php` are for a local XAMPP install (`127.0.0.1`, database `fleet_management`, user `root`, blank password). Set `DB_HOST`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in the PHP environment for other configurations.
+9. Create the first `head_admin` account from a local terminal using the one-time CLI bootstrap. It reads a password from the process environment and stores only a PHP password hash; never ship a default account:
 
    ```powershell
    $env:HEAD_ADMIN_NAME = "Your Name"
@@ -22,11 +23,20 @@ The RBAC layer uses database-backed roles and PHP sessions. It does not trust a 
    ```
 
    The command refuses to create another Head Admin when one already exists. There is no public Head Admin self-registration.
-9. Ensure the project URL prefix in `dashboardPathForRole()` in `includes/rbac.php` matches the folder name under your web root. The current paths assume the project is served from `/Fleet-Management-System-Mockup-Design`.
+10. Ensure the project URL prefix in `dashboardPathForRole()` in `includes/rbac.php` matches the folder name under your web root. The current paths assume the project is served from `/Fleet-Management-System-Mockup-Design`.
+
+### Accounting dashboard
+
+- Assign the `accounting` role from the Head Admin Users page. Signing in with that account opens `dashboard/accounting/index.php`; the dashboard and its API require the same MySQL-backed session and Accounting role.
+- The imported accounting workspace currently keeps its sample finance records in a separate local SQLite database at `dashboard/accounting/fleet.sqlite`. It is not connected to the operational MySQL fleet records. Do not treat its sample vehicles or transactions as live company data.
+- The main login and account-request pages use the Paragon branding assets from Ainie's `origin/ainie` branch while keeping this project's MySQL authentication, active-account checks, CSRF validation, role routing, and Head Admin account approvals.
+- Public account requests create pending records only; they do not activate users. Head Admin reviews requests from **Account requests**. The requested role is limited to Admin, Manager, User, Accounting, or Driver; Head Admin accounts are never self-requested.
+- The SQLite database is initialized on first Accounting dashboard access. XAMPP PHP must have `pdo_sqlite` enabled, and Apache must be able to write to `dashboard/accounting`. The module's `.htaccess` blocks direct downloads of its database and SQL files.
+- Accounting API writes require the shared application's CSRF token. Use the Accounting dashboard page rather than calling `api.php` directly.
 
 ### Connect the login handler
 
-The included `login.php` authenticates active users by email/password, calls `completeLogin()`, and redirects to the server-determined dashboard. It treats a different selected role as an access request, not authority. If integrating a different login UI, call `completeLogin()` only after password verification:
+The included Ainie-branded `login.php` authenticates active users by email/password, optionally sends a different selected role as an access request (never as authority), and redirects to the server-determined dashboard. New users submit a separate account request; Head Admin approval creates their account. If integrating a different login UI, call `completeLogin()` only after password verification:
 
 ```php
 $login = completeLogin(
@@ -38,7 +48,7 @@ header('Location: ' . $login['dashboard']);
 exit;
 ```
 
-The user lookup must also require `status = 'active'`. `completeLogin()` reloads the assigned role from the database, regenerates the session ID, and treats a different submitted role only as an access request; it does not change the user's authority. The dashboard can display the resulting session flash message. Do not set `$_SESSION['role']` from the form.
+The user lookup must also require `status = 'active'`. `completeLogin()` reloads the assigned role from the database and regenerates the session ID. Its optional selected-role argument creates an access request only; it does not change the user's authority. Do not set `$_SESSION['role']` from a form.
 
 ### Access control and elevation behavior
 

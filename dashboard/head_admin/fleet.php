@@ -80,6 +80,23 @@ $vehicles = [
     ],
 ];
 
+$sampleVehicleModels = ['Ford Transit', 'Hyundai H-100', 'Mitsubishi Fuso', 'Isuzu Traviz', 'Toyota Hilux'];
+$sampleVehicleStatuses = ['available', 'on-trip', 'available', 'maintenance', 'damaged', 'on-trip', 'available'];
+$sampleLocations = ['Quezon City Depot', 'Makati, Metro Manila', 'NLEX, Bocaue', 'Caloocan Fleet Garage', 'Laguna Distribution Hub'];
+$sampleDrivers = ['Carlo Mendoza', 'Bea Navarro', 'Luis Ramos', 'Nina Flores', 'Paolo Garcia', 'Unassigned'];
+for ($vehicleNumber = count($vehicles) + 1; $vehicleNumber <= 51; $vehicleNumber++) {
+    $status = $sampleVehicleStatuses[($vehicleNumber - 1) % count($sampleVehicleStatuses)];
+    $vehicles[] = [
+        'name' => $sampleVehicleModels[($vehicleNumber - 1) % count($sampleVehicleModels)],
+        'plate' => sprintf('FLT %04d', 2000 + $vehicleNumber),
+        'driver' => $sampleDrivers[($vehicleNumber - 1) % count($sampleDrivers)],
+        'location' => $sampleLocations[($vehicleNumber - 1) % count($sampleLocations)],
+        'fuel' => ($vehicleNumber * 13) % 101,
+        'condition' => $status === 'damaged' ? 'Needs body inspection' : ($status === 'maintenance' ? 'Scheduled service' : 'No issue'),
+        'status' => $status,
+    ];
+}
+
 $matchingVehicles = array_filter($vehicles, static function (array $vehicle) use ($filter, $search, $filters): bool {
     $matchesFilter = match ($filter) {
         'low-fuel' => $vehicle['fuel'] !== null && $vehicle['fuel'] <= 25,
@@ -176,14 +193,14 @@ $statusStyles = [
                         <h2 class="mt-3 text-2xl font-bold tracking-tight">Fleet overview</h2>
                         <p class="mt-1 text-sm text-slate-600">Search and review vehicle status, reported condition, fuel, and last known location.</p>
                     </div>
-                    <span class="rounded-lg border border-blue-100 bg-white/80 px-3 py-2 text-sm font-semibold text-blue-800">51 vehicles in fleet</span>
+                    <span class="rounded-lg border border-blue-100 bg-white/80 px-3 py-2 text-sm font-semibold text-blue-800"><?= count($vehicles) ?> vehicles in fleet</span>
                 </div>
 
                 <section class="rounded-xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="vehicles-heading">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <h3 id="vehicles-heading" class="font-bold">Vehicle records</h3>
-                            <p class="mt-1 text-sm text-slate-500">Showing matching sample records below. Connect the fleet database to load all 51 vehicles.</p>
+                            <p class="mt-1 text-sm text-slate-500">Showing all <?= count($vehicles) ?> illustrative sample vehicle records.</p>
                         </div>
                     </div>
 
@@ -248,7 +265,7 @@ $statusStyles = [
                             </tbody>
                         </table>
                     </div>
-                    <p class="mt-3 text-xs text-slate-500">Showing <?= count($matchingVehicles) ?> of <?= count($vehicles) ?> sample vehicle records · Fleet total: 51 · Locations and telemetry are illustrative</p>
+                    <p class="mt-3 text-xs text-slate-500">Showing <?= count($matchingVehicles) ?> of <?= count($vehicles) ?> sample vehicle records · Locations and telemetry are illustrative</p>
                 </section>
                 <footer class="pb-2 text-center text-xs text-slate-500">FleetFlow Manager · Sample data, not live vehicle telemetry</footer>
             </div>

@@ -59,6 +59,8 @@ $eventLabels = [
     'USER_DEACTIVATED' => 'User account deactivated',
     'USER_REACTIVATED' => 'User account reactivated',
     'USER_PASSWORD_RESET' => 'User password reset',
+    'ACCOUNT_REQUEST_APPROVED' => 'New account request approved',
+    'ACCOUNT_REQUEST_REJECTED' => 'New account request rejected',
     'TRIP_FORCE_COMPLETED' => 'Trip force completed',
     'TRIP_CANCELLED' => 'Trip cancelled',
 ];
@@ -84,7 +86,7 @@ require __DIR__ . '/_layout_start.php';
     <span class="shrink-0 text-sm font-semibold text-blue-800 group-hover:underline">Open fleet workspace <span aria-hidden="true">&rarr;</span></span>
 </a>
 
-<section aria-label="System account summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+<section aria-label="System account summary" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
     <a href="<?= $escape(headAdminUrl('users.php', ['status' => 'active'])) ?>" class="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
         <p class="text-sm font-medium text-slate-500">Active user accounts</p>
         <p class="mt-3 text-3xl font-bold text-slate-900"><?= $totalActiveUsers ?></p>
@@ -99,6 +101,11 @@ require __DIR__ . '/_layout_start.php';
         <p class="text-sm font-medium text-amber-800">Pending access requests</p>
         <p class="mt-3 text-3xl font-bold text-amber-950"><?= $pendingCount ?></p>
         <span class="mt-2 inline-flex text-xs font-semibold text-amber-900 group-hover:underline">Review requests <span aria-hidden="true">&rarr;</span></span>
+    </a>
+    <a href="<?= $escape(headAdminUrl('account_requests.php')) ?>" class="group rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
+        <p class="text-sm font-medium text-blue-800">New account requests</p>
+        <p class="mt-3 text-3xl font-bold text-blue-950"><?= (int) $pendingAccountSignupCount ?></p>
+        <span class="mt-2 inline-flex text-xs font-semibold text-blue-900 group-hover:underline">Review account requests <span aria-hidden="true">&rarr;</span></span>
     </a>
     <a href="<?= $escape(headAdminUrl('audit_logs.php', ['period' => 'today'])) ?>" class="group rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-blue-300 hover:shadow-md">
         <p class="text-sm font-medium text-slate-500">Audit events today</p>

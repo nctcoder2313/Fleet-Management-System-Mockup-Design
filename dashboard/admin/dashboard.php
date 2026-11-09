@@ -8,7 +8,10 @@ $pageTitle = 'Admin dashboard';
 if ($previewMode) {
     $vehicles = $_SESSION['admin_preview_vehicles'];
     $vehicleCount = count($vehicles);
-    $onRoadCount = 2;
+    $onRoadCount = count(array_filter(
+        $vehicles,
+        static fn (array $vehicle): bool => ($vehicle['status'] ?? '') === 'on_road'
+    ));
     $documents = $_SESSION['admin_document_preview'];
     $maintenanceRecords = $_SESSION['admin_maintenance_preview'];
     $geofenceRules = $_SESSION['admin_geofence_preview'];

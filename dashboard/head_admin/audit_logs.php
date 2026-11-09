@@ -13,6 +13,8 @@ $eventLabels = [
     'USER_DEACTIVATED' => 'User account deactivated',
     'USER_REACTIVATED' => 'User account reactivated',
     'USER_PASSWORD_RESET' => 'User password reset',
+    'ACCOUNT_REQUEST_APPROVED' => 'New account request approved',
+    'ACCOUNT_REQUEST_REJECTED' => 'New account request rejected',
     'TRIP_FORCE_COMPLETED' => 'Trip force completed',
     'TRIP_CANCELLED' => 'Trip cancelled',
 ];

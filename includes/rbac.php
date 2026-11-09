@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const RBAC_ROLES = ['head_admin', 'admin', 'manager', 'user', 'accounting', 'driver'];
+const RBAC_ROLES = ['head_admin', 'admin', 'manager', 'accounting'];
 const ROLE_ELEVATION_HOURS_DEFAULT = 8;
 
 function startSecureSession(): void
@@ -49,7 +49,7 @@ function authenticatedUser(PDO $pdo): ?array
     }
 
     $statement = $pdo->prepare(
-        'SELECT id, name, email, role, status
+        'SELECT id, name, email, profile_photo, role, status
          FROM users
          WHERE id = :id
          LIMIT 1'
@@ -118,12 +118,10 @@ function completeLogin(PDO $pdo, int $userId, ?string $selectedRole = null): arr
 function dashboardPathForRole(string $role): string
 {
     return match ($role) {
-        'head_admin' => '/Fleet-Management-System-Mockup-Design/dashboard/head_admin/dashboard.php',
+        'head_admin' => '/Fleet-Management-System-Mockup-Design/dashboard/head_admin/fleet_overview.php',
         'admin' => '/Fleet-Management-System-Mockup-Design/dashboard/admin/dashboard.php',
         'manager' => '/Fleet-Management-System-Mockup-Design/dashboard/manager/dashboard.php',
-        'user' => '/Fleet-Management-System-Mockup-Design/dashboard/user/dashboard.php',
-        'accounting' => '/Fleet-Management-System-Mockup-Design/dashboard/accounting/dashboard.php',
-        'driver' => '/Fleet-Management-System-Mockup-Design/dashboard/driver/dashboard.php',
+        'accounting' => '/Fleet-Management-System-Mockup-Design/dashboard/accounting/index.php',
         default => throw new InvalidArgumentException('Unknown application role.'),
     };
 }
@@ -236,7 +234,7 @@ function denyRoleAccess(PDO $pdo, string $requestedRole): void
     }
 
     $safeMessage = htmlspecialchars($message, ENT_QUOTES, 'UTF-8');
-    $homeUrl = htmlspecialchars('/Fleet-Management-System-Mockup-Design/dashboard/head_admin/dashboard.php', ENT_QUOTES, 'UTF-8');
+    $homeUrl = htmlspecialchars('/Fleet-Management-System-Mockup-Design/dashboard/head_admin/fleet_overview.php', ENT_QUOTES, 'UTF-8');
     exit(
         '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         . '<title>Access denied</title><body style="font:16px system-ui;background:#eff6ff;color:#0f172a;padding:3rem">'
