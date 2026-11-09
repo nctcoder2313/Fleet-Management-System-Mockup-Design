@@ -4,6 +4,26 @@ function h($value): string
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
+function metricIcon(string $name, string $tone): string
+{
+    $paths = [
+        'expense' => '<path d="M12 7h17l7 7v27H12zM29 7v8h7M18 22h12M18 28h12M18 34h7"/><path d="M31 32c-1.4-1.3-5.8-1.4-6.2.7-.5 2.8 6.8 1.4 6.2 4.5-.4 2.2-4.9 2.1-6.5.5M28 30v10"/>',
+        'fuel' => '<path d="M10 41V9a3 3 0 0 1 3-3h16a3 3 0 0 1 3 3v32M8 41h27M15 12h12v10H15zM32 13h4l5 6v14a3 3 0 0 1-6 0v-8h-3"/>',
+        'maintenance' => '<path d="m20 5-1 5a15 15 0 0 0-4 2l-4-2-4 7 4 3a15 15 0 0 0 0 5l-4 3 4 7 4-2a15 15 0 0 0 4 2l1 5h8l1-5a15 15 0 0 0 4-2l4 2 4-7-4-3a15 15 0 0 0 0-5l4-3-4-7-4 2a15 15 0 0 0-4-2l-1-5z"/><circle cx="24" cy="22.5" r="6"/>',
+        'outstanding' => '<path d="M12 6h17l7 7v29H12zM29 6v8h7M18 22h12"/><circle cx="31" cy="32" r="8"/><path d="M31 27v5l3 2"/>',
+        'payment' => '<rect x="5" y="12" width="38" height="25" rx="3"/><path d="M5 19h38M14 30h8"/>',
+        'driver-advance' => '<circle cx="24" cy="15" r="7"/><path d="M10 41c1-9 6-14 14-14s13 5 14 14zM35 9v8M31 13h8"/>',
+        'cash-issued' => '<path d="M8 14h32v27H8zM8 20h32M14 14V8h24v6"/><path d="M24 24v11m-5-5 5 5 5-5"/>',
+        'liquidated' => '<path d="M12 6h24v36H12zM18 14h12M18 20h12M18 26h6"/><path d="m23 34 4 4 8-9"/>',
+        'open-records' => '<path d="M12 7h24v34H12zM18 15h12M18 22h12M18 29h7"/><circle cx="34" cy="34" r="8"/><path d="M34 30v4l3 2"/>',
+    ];
+    if (!isset($paths[$name])) {
+        throw new InvalidArgumentException('Unknown metric icon: ' . $name);
+    }
+
+    return '<svg class="metric-watermark icon-' . h($tone) . '" viewBox="0 0 48 48" aria-hidden="true" focusable="false">' . $paths[$name] . '</svg>';
+}
+
 $money = static fn ($centavos) => '₱' . number_format((int) $centavos / 100, 2);
 $expenseLedgerParams = [
   'view' => 'expenses',
@@ -66,9 +86,9 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
         <div class="workspace-label">ACCOUNTING DASHBOARD</div>
         <nav class="nav-list">
           <a class="nav-item <?= $activeView === 'home' ? 'is-active' : '' ?>" href="?view=home" title="Overview" <?= $activeView === 'home' ? 'aria-current="page"' : '' ?>><span class="nav-icon">◫</span>Overview</a>
-          <a class="nav-item <?= $activeView === 'expenses' ? 'is-active' : '' ?>" href="?view=expenses" title="Expenses" <?= $activeView === 'expenses' ? 'aria-current="page"' : '' ?>><span class="nav-icon">＄</span>Expenses <span class="nav-count"><?= h($expenseSummary['pending_count'] ?? 0) ?> pending</span></a>
-          <a class="nav-item <?= $activeView === 'bills' ? 'is-active' : '' ?>" href="?view=bills" title="Bills & Payments" <?= $activeView === 'bills' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▤</span>Bills &amp; Payments <span class="nav-count"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] !== 'Paid'))) ?></span></a>
-          <a class="nav-item <?= $activeView === 'advances' ? 'is-active' : '' ?>" href="?view=advances" title="Driver advances · <?= h($advanceSummary['open_count'] ?? 0) ?> open" <?= $activeView === 'advances' ? 'aria-current="page"' : '' ?>><span class="nav-icon">♙</span>Driver Advances <span class="nav-count"><?= h($advanceSummary['open_count'] ?? 0) ?></span></a>
+          <a class="nav-item <?= $activeView === 'expenses' ? 'is-active' : '' ?>" href="?view=expenses" title="Expenses" <?= $activeView === 'expenses' ? 'aria-current="page"' : '' ?>><span class="nav-icon">＄</span>Expenses <span class="nav-count"><?= h($sidebarPendingExpenseCount) ?> pending</span></a>
+          <a class="nav-item <?= $activeView === 'bills' ? 'is-active' : '' ?>" href="?view=bills" title="Bills & Payments" <?= $activeView === 'bills' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▤</span>Bills &amp; Payments <span class="nav-count"><?= h($sidebarUnpaidBillCount) ?></span></a>
+          <a class="nav-item <?= $activeView === 'advances' ? 'is-active' : '' ?>" href="?view=advances" title="Driver advances · <?= h($sidebarOpenAdvanceCount) ?> open" <?= $activeView === 'advances' ? 'aria-current="page"' : '' ?>><span class="nav-icon">♙</span>Driver Advances <span class="nav-count"><?= h($sidebarOpenAdvanceCount) ?></span></a>
           <a class="nav-item <?= $activeView === 'financial-reports' ? 'is-active' : '' ?>" href="?view=financial-reports" title="Financial reports" <?= $activeView === 'financial-reports' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▥</span>Reports</a>
         </nav>
 
@@ -135,17 +155,57 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           </form>
           <?php if ($activeView !== 'bills'): ?>
           <section class="metrics-grid accounting-metrics" aria-label="Financial summary">
-            <a class="metric-card metric-link" href="?<?= h(http_build_query($expenseLedgerParams)) ?>" aria-label="View all fleet expenses for this period"><span class="metric-top"><span class="metric-label">Total fleet expenses</span><span class="metric-icon icon-blue">↗</span></span><strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong><span class="metric-foot">Recorded this period <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['category' => 'Fuel']))) ?>" aria-label="View all fuel expenses for this period"><span class="metric-top"><span class="metric-label">Fuel costs</span><span class="metric-icon icon-amber">◉</span></span><strong class="metric-value"><?= h($money($expenseSummary['fuel_cents'])) ?></strong><span class="metric-foot">Gasoline and diesel <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['expense_group' => 'maintenance']))) ?>" aria-label="View maintenance and repair expenses"><span class="metric-top"><span class="metric-label">Maintenance &amp; repairs</span><span class="metric-icon icon-green">⚙</span></span><strong class="metric-value"><?= h($money($expenseSummary['maintenance_cents'])) ?></strong><span class="metric-foot">Service, parts and repairs <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>" aria-label="View outstanding bills"><span class="metric-top"><span class="metric-label">Outstanding bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong><span class="metric-foot"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] === 'Overdue'))) ?> overdue in range <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd])) ?>" aria-label="View payments made this period"><span class="metric-top"><span class="metric-label">Total payments</span><span class="metric-icon icon-violet">✓</span></span><strong class="metric-value"><?= h($money($totalPaymentsCents)) ?></strong><span class="metric-foot">Paid expenses and bill payments <span aria-hidden="true">↗</span></span></a>
-            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd])) ?>" aria-label="View outstanding driver advances"><span class="metric-top"><span class="metric-label">Driver advances</span><span class="metric-icon icon-teal">♙</span></span><strong class="metric-value"><?= h($money($advanceSummary['outstanding_cents'])) ?></strong><span class="metric-foot"><?= h($advanceSummary['open_count'] ?? 0) ?> open advances <span aria-hidden="true">↗</span></span></a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query($expenseLedgerParams)) ?>" aria-label="View all fleet expenses for this period">
+              <span class="metric-top"><span class="metric-label">Total fleet expenses</span></span>
+              <strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong>
+              <span class="metric-foot">Recorded this period</span>
+              <?= metricIcon('expense', 'blue') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['category' => 'Fuel']))) ?>" aria-label="View all fuel expenses for this period">
+              <span class="metric-top"><span class="metric-label">Fuel costs</span></span>
+              <strong class="metric-value"><?= h($money($expenseSummary['fuel_cents'])) ?></strong>
+              <span class="metric-foot">Gasoline and diesel</span>
+              <?= metricIcon('fuel', 'amber') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(array_merge($expenseLedgerParams, ['expense_group' => 'maintenance']))) ?>" aria-label="View maintenance and repair expenses">
+              <span class="metric-top"><span class="metric-label">Maintenance &amp; repairs</span></span>
+              <strong class="metric-value"><?= h($money($expenseSummary['maintenance_cents'])) ?></strong>
+              <span class="metric-foot">Service, parts and repairs</span>
+              <?= metricIcon('maintenance', 'green') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>" aria-label="View outstanding bills">
+              <span class="metric-top"><span class="metric-label">Outstanding bills</span></span>
+              <strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong>
+              <span class="metric-foot"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] === 'Overdue'))) ?> overdue in range</span>
+              <?= metricIcon('outstanding', 'red') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd])) ?>" aria-label="View payments made this period">
+              <span class="metric-top"><span class="metric-label">Total payments</span></span>
+              <strong class="metric-value"><?= h($money($totalPaymentsCents)) ?></strong>
+              <span class="metric-foot">Paid expenses and bill payments</span>
+              <?= metricIcon('payment', 'green') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd])) ?>" aria-label="View outstanding driver advances">
+              <span class="metric-top"><span class="metric-label">Outstanding advances</span></span>
+              <strong class="metric-value"><?= h($money($advanceSummary['outstanding_cents'])) ?></strong>
+              <span class="metric-foot"><?= h($advanceSummary['open_count'] ?? 0) ?> open advances</span>
+              <?= metricIcon('outstanding', 'red') ?>
+            </a>
           </section>
           <?php else: ?>
           <section class="metrics-grid accounting-metrics" aria-label="Bills and payment summary">
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Outstanding bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong><span class="metric-foot"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] === 'Overdue'))) ?> overdue</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Payments this period</span><span class="metric-icon icon-green">✓</span></span><strong class="metric-value"><?= h($money($billPaymentsCents)) ?></strong><span class="metric-foot">Applied to supplier bills</span></article>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>" aria-label="View supplier bills and outstanding balances">
+              <span class="metric-top"><span class="metric-label">Outstanding bills</span></span>
+              <strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong>
+              <span class="metric-foot"><?= h(count(array_filter($bills, static fn ($bill) => $bill['payment_status'] === 'Overdue'))) ?> overdue</span>
+              <?= metricIcon('outstanding', 'red') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>" aria-label="View supplier bill payments for this period">
+              <span class="metric-top"><span class="metric-label">Payments this period</span></span>
+              <strong class="metric-value"><?= h($money($billPaymentsCents)) ?></strong>
+              <span class="metric-foot">Applied to supplier bills</span>
+              <?= metricIcon('payment', 'green') ?>
+            </a>
           </section>
           <?php endif; ?>
           <?php endif; ?>
@@ -168,10 +228,10 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           <section class="accounting-chart-grid" aria-label="Expense reports">
             <article class="panel accounting-chart-panel">
               <div class="panel-heading"><div><h2>Monthly expense trend</h2><p>January–<?= h(date('F', mktime(0, 0, 0, $trendMonthCount, 1))) ?> <?= h($selectedYear) ?></p></div><span class="chart-unit">PHP</span></div>
-              <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" role="img" aria-label="Monthly fleet expenses for <?= h($selectedYear) ?>"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date('F Y', strtotime($trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendItem): ?><span><?= h(date('M', strtotime($trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this year.</p><?php endif; ?>
+              <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" preserveAspectRatio="none" role="img" aria-label="Monthly fleet expenses for <?= h($selectedYear) ?>"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date('F Y', strtotime($trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><span style="left: <?= h(round(4 + ($trendIndex * 92 / $trendCount), 2)) ?>%"><?= h(date('M', strtotime($trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this year.</p><?php endif; ?>
             </article>
             <article class="panel accounting-chart-panel">
-              <div class="panel-heading"><div><h2>Spend by category</h2><p>Share of selected-period expenses</p></div></div>
+              <div class="panel-heading"><div><h2>Spend by category</h2><p>Share of selected-period expenses</p><p class="category-note">“Parts” means replacement vehicle components; see each expense description for the exact item.</p></div></div>
               <?php if ($expenseCategories !== []): ?><div class="category-breakdown"><div class="expense-donut" style="--donut-stops: <?= h(implode(', ', $donutStops)) ?>"><span><?= h($money($categoryTotal)) ?><small>Total</small></span></div><div class="category-legend"><?php foreach ($expenseCategories as $categoryIndex => $categoryItem): ?><div><i style="--category-color: <?= h($categoryColors[$categoryItem['category']] ?? '#94a3b8') ?>"></i><span><?= h($categoryItem['category']) ?></span><strong><?= h(number_format($categoryPercentages[$categoryIndex], 1)) ?>%</strong><em><?= h($money($categoryItem['total_cents'])) ?></em></div><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this period.</p><?php endif; ?>
             </article>
           </section>
@@ -222,10 +282,30 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             <button class="button filter-submit" type="submit">Apply filters</button>
           </form>
           <section class="metrics-grid accounting-metrics" aria-label="Driver advance summary">
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Cash issued</span><span class="metric-icon icon-blue">↗</span></span><strong class="metric-value"><?= h($money($advanceSummary['issued_cents'])) ?></strong><span class="metric-foot">Selected period</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Liquidated</span><span class="metric-icon icon-green">✓</span></span><strong class="metric-value"><?= h($money($advanceSummary['liquidated_cents'])) ?></strong><span class="metric-foot">Receipts submitted</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Outstanding</span><span class="metric-icon icon-amber">◷</span></span><strong class="metric-value"><?= h($money($advanceSummary['outstanding_cents'])) ?></strong><span class="metric-foot">Awaiting liquidation</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Open records</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($advanceSummary['open_count'] ?? 0) ?></strong><span class="metric-foot">Need receipt follow-up</span></article>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'driver' => $selectedDriver])) ?>" aria-label="View driver advances issued in this period">
+              <span class="metric-top"><span class="metric-label">Cash issued</span></span>
+              <strong class="metric-value"><?= h($money($advanceSummary['issued_cents'])) ?></strong>
+              <span class="metric-foot">Selected period</span>
+              <?= metricIcon('cash-issued', 'blue') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'driver' => $selectedDriver])) ?>" aria-label="View submitted driver advance liquidations">
+              <span class="metric-top"><span class="metric-label">Liquidated</span></span>
+              <strong class="metric-value"><?= h($money($advanceSummary['liquidated_cents'])) ?></strong>
+              <span class="metric-foot">Receipts submitted</span>
+              <?= metricIcon('liquidated', 'green') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'driver' => $selectedDriver])) ?>" aria-label="View outstanding driver advances awaiting liquidation">
+              <span class="metric-top"><span class="metric-label">Outstanding</span></span>
+              <strong class="metric-value"><?= h($money($advanceSummary['outstanding_cents'])) ?></strong>
+              <span class="metric-foot">Awaiting liquidation</span>
+              <?= metricIcon('outstanding', 'red') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'advances', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'driver' => $selectedDriver])) ?>" aria-label="View driver advance records needing receipt follow-up">
+              <span class="metric-top"><span class="metric-label">Open records</span></span>
+              <strong class="metric-value"><?= h($advanceSummary['open_count'] ?? 0) ?></strong>
+              <span class="metric-foot">Need receipt follow-up</span>
+              <?= metricIcon('open-records', 'amber') ?>
+            </a>
           </section>
           <section class="panel accounting-table-panel liquidation-history-panel">
             <div class="panel-heading"><div><h2>Liquidations pending review</h2><p><?= h(count($pendingLiquidations)) ?> submissions awaiting approval</p></div></div>
@@ -250,9 +330,24 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
           </section>
           <?php elseif ($activeView === 'financial-reports'): ?>
           <section class="metrics-grid accounting-metrics" aria-label="Report totals">
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Total expenses</span><span class="metric-icon icon-blue">↗</span></span><strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong><span class="metric-foot">Selected period</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Outstanding bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong><span class="metric-foot">Includes unpaid expenses</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Payments</span><span class="metric-icon icon-green">✓</span></span><strong class="metric-value"><?= h($money($totalPaymentsCents)) ?></strong><span class="metric-foot">Paid expenses and bill payments</span></article>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query($expenseLedgerParams)) ?>" aria-label="View expenses for this reporting period">
+              <span class="metric-top"><span class="metric-label">Total expenses</span></span>
+              <strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong>
+              <span class="metric-foot">Selected period</span>
+              <?= metricIcon('expense', 'blue') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>" aria-label="View bills with outstanding balances">
+              <span class="metric-top"><span class="metric-label">Outstanding bills</span></span>
+              <strong class="metric-value"><?= h($money($outstandingBillsCents)) ?></strong>
+              <span class="metric-foot">Includes unpaid expenses</span>
+              <?= metricIcon('outstanding', 'red') ?>
+            </a>
+            <a class="metric-card metric-link" href="?<?= h(http_build_query(['view' => 'bills', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle])) ?>" aria-label="View payments for this reporting period">
+              <span class="metric-top"><span class="metric-label">Payments</span></span>
+              <strong class="metric-value"><?= h($money($totalPaymentsCents)) ?></strong>
+              <span class="metric-foot">Paid expenses and bill payments</span>
+              <?= metricIcon('payment', 'green') ?>
+            </a>
           </section>
           <section class="report-shortcuts" aria-label="Other accounting reports">
             <a class="button export-button" href="?<?= h(http_build_query(['view' => 'expenses', 'period' => $period, 'year' => $selectedYear, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'category' => 'Fuel'])) ?>">Fuel expense report</a>
@@ -639,15 +734,15 @@ foreach ($expenseTrend as $trendIndex => $trendItem) {
             <a class="button export-button" href="?<?= h(http_build_query(['view' => 'accounting', 'period' => $period, 'from' => $periodStart, 'to' => $periodEnd, 'vehicle' => $selectedVehicle, 'export' => 'csv'])) ?>" aria-label="Export filtered expenses as CSV">↓ Export CSV</a>
           </form>
           <section class="metrics-grid accounting-metrics" aria-label="Financial summary">
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Fleet expenses</span><span class="metric-icon icon-blue">↗</span></span><strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong><span class="metric-foot">Selected period total</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Fuel costs</span><span class="metric-icon icon-amber">◉</span></span><strong class="metric-value"><?= h($money($expenseSummary['fuel_cents'])) ?></strong><span class="metric-foot">Fuel transactions</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Maintenance &amp; repair</span><span class="metric-icon icon-green">⚙</span></span><strong class="metric-value"><?= h($money($expenseSummary['maintenance_cents'])) ?></strong><span class="metric-foot">Maintenance, parts &amp; inspections</span></article>
-            <article class="metric-card"><span class="metric-top"><span class="metric-label">Pending bills</span><span class="metric-icon icon-red">!</span></span><strong class="metric-value"><?= h($money($expenseSummary['pending_cents'])) ?></strong><span class="metric-foot">Awaiting payment</span></article>
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Fleet expenses</span></span><strong class="metric-value"><?= h($money($expenseSummary['total_cents'])) ?></strong><span class="metric-foot">Selected period total</span></article>
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Fuel costs</span></span><strong class="metric-value"><?= h($money($expenseSummary['fuel_cents'])) ?></strong><span class="metric-foot">Fuel transactions</span></article>
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Maintenance &amp; repair</span></span><strong class="metric-value"><?= h($money($expenseSummary['maintenance_cents'])) ?></strong><span class="metric-foot">Maintenance, parts &amp; inspections</span></article>
+            <article class="metric-card"><span class="metric-top"><span class="metric-label">Pending bills</span></span><strong class="metric-value"><?= h($money($expenseSummary['pending_cents'])) ?></strong><span class="metric-foot">Awaiting payment</span></article>
           </section>
           <section class="accounting-chart-grid" aria-label="Expense reports">
             <article class="panel accounting-chart-panel">
               <div class="panel-heading"><div><h2>Expense trend</h2><p><?= $dailyTrend ? 'Daily' : 'Monthly' ?> spend · <?= h(date('M Y', strtotime($periodStart))) ?> to <?= h(date('M Y', strtotime($periodEnd))) ?></p></div><span class="chart-unit">PHP</span></div>
-              <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" role="img" aria-label="<?= $dailyTrend ? 'Daily' : 'Monthly' ?> fleet expense trend in Philippine pesos"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date($dailyTrend ? 'd M Y' : 'F Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendItem): ?><span><?= h(date($dailyTrend ? 'd M' : 'M Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this period.</p><?php endif; ?>
+              <?php if ($expenseTrend !== []): ?><div class="line-chart-wrap"><svg class="expense-line-chart" viewBox="0 0 600 170" preserveAspectRatio="none" role="img" aria-label="<?= $dailyTrend ? 'Daily' : 'Monthly' ?> fleet expense trend in Philippine pesos"><path class="line-grid" d="M24 30H576 M24 80H576 M24 130H576"/><polyline points="<?= h(implode(' ', $trendPoints)) ?>"/><g><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><circle cx="<?= h(explode(',', $trendPoints[$trendIndex])[0]) ?>" cy="<?= h(explode(',', $trendPoints[$trendIndex])[1]) ?>" r="4"><title><?= h(date($dailyTrend ? 'd M Y' : 'F Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?>: <?= h($money($trendItem['total_cents'])) ?></title></circle><?php endforeach; ?></g></svg><div class="trend-labels"><?php foreach ($expenseTrend as $trendIndex => $trendItem): ?><span style="left: <?= h(round(4 + ($trendIndex * 92 / $trendCount), 2)) ?>%"><?= h(date($dailyTrend ? 'd M' : 'M Y', strtotime($dailyTrend ? $trendItem['month'] : $trendItem['month'] . '-01'))) ?></span><?php endforeach; ?></div></div><?php else: ?><p class="chart-empty">No expense data for this period.</p><?php endif; ?>
             </article>
             <article class="panel accounting-chart-panel">
               <div class="panel-heading"><div><h2>Spend by category</h2><p>Share of selected-period expenses</p></div></div>

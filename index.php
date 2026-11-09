@@ -267,7 +267,7 @@ $trendQuery = $db->prepare(
 $trendQuery->execute($trendParams);
 $monthlyTotals = array_column($trendQuery->fetchAll(PDO::FETCH_ASSOC), 'total_cents', 'month');
 $expenseTrend = [];
-$trendMonthCount = $selectedYear === $currentYear ? (int) date('n') : 12;
+$trendMonthCount = 12;
 for ($month = 1; $month <= $trendMonthCount; $month++) {
     $monthKey = sprintf('%04d-%02d', $selectedYear, $month);
     $expenseTrend[] = ['month' => $monthKey, 'total_cents' => (int) ($monthlyTotals[$monthKey] ?? 0)];
@@ -322,6 +322,16 @@ $advanceSummaryQuery = $db->prepare(
 );
 $advanceSummaryQuery->execute($advanceParams);
 $advanceSummary = $advanceSummaryQuery->fetch(PDO::FETCH_ASSOC);
+$sidebarPendingExpenseCount = (int) $db->query("SELECT COUNT(*) FROM expenses WHERE status = 'Pending'")->fetchColumn();
+$sidebarUnpaidBillCount = (int) $db->query(
+    'SELECT COUNT(*) FROM bills
+     WHERE amount_cents > COALESCE(
+         (SELECT SUM(amount_cents) FROM bill_payments WHERE bill_payments.bill_id = bills.id), 0
+     )'
+)->fetchColumn();
+$sidebarOpenAdvanceCount = (int) $db->query(
+    'SELECT COUNT(*) FROM cash_advances WHERE liquidated_cents < amount_cents'
+)->fetchColumn();
 $liquidationWhere = 'WHERE advance_liquidations.liquidated_at BETWEEN :start_date AND :end_date';
 $liquidationParams = ['start_date' => $periodStart, 'end_date' => $periodEnd];
 if ($selectedVehicle !== '') {
