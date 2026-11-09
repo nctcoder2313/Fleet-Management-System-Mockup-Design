@@ -651,6 +651,46 @@ tbody td { font-size: 12px; }
 .fleet-vehicle-form .field-help { font-size: 9px; }
 .fleet-empty-row td { padding: 22px 10px; color: #64748b; font-size: 12px; text-align: center; }
 .trip-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 16px; }
+.trip-roster { overflow: hidden; }
+.trip-roster-heading { align-items: center; }
+.trip-roster-heading .count-pill { flex: 0 0 auto; }
+.trip-filter-toolbar { display: flex; align-items: center; gap: 9px; padding: 0 18px 13px; }
+.trip-filter-toolbar label { color: #64748b; font-size: 11px; font-weight: 600; }
+.trip-filter-toolbar .trip-search { display: flex; flex: 1; align-items: center; gap: 9px; }
+.trip-search input { width: min(250px, 100%); height: 33px; padding: 0 9px; border: 1px solid #e2e8f0; border-radius: 5px; outline: 0; color: #334155; background: #fff; font-size: 11px; font-weight: 400; }
+.trip-search input:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px #dbeafe; }
+.trip-filter-toolbar select { min-width: 150px; height: 33px; padding: 0 9px; border: 1px solid #e2e8f0; border-radius: 5px; outline: 0; color: #334155; background: #fff; font-size: 11px; }
+.trip-filter-toolbar select:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px #dbeafe; }
+.trip-table-scroll { width: 100%; overflow-x: auto; }
+.trip-table { width: 100%; min-width: 850px; border-collapse: collapse; text-align: left; }
+.trip-table th { padding: 11px 12px; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; color: #64748b; background: #f8fafc; font-size: 9px; font-weight: 700; letter-spacing: .45px; white-space: nowrap; }
+.trip-table td { padding: 12px; border-bottom: 1px solid #f1f5f9; color: #475569; font-size: 11px; vertical-align: middle; }
+.trip-roster-row { transition: background .15s; }
+.trip-roster-row:hover, .trip-roster-row[aria-expanded="true"] { background: #f8fbff; }
+.trip-roster-id { color: #0f172a; font-size: 11px; font-weight: 650; }
+.trip-route { color: #334155; font-weight: 550; white-space: nowrap; }
+.trip-route > span { padding: 0 3px; color: #94a3b8; }
+.trip-date, .trip-eta { display: block; white-space: nowrap; }
+.trip-date { color: #334155; font-size: 10px; }
+.trip-eta { margin-top: 3px; color: #64748b; font-size: 9px; }
+.trip-status-badge { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; font-size: 9px; font-weight: 650; white-space: nowrap; }
+.trip-status-in_progress { color: #1d4ed8; background: #eff6ff; }
+.trip-status-delayed { color: #b45309; background: #fffbeb; }
+.trip-status-upcoming { color: #64748b; background: #f1f5f9; }
+.trip-status-completed { color: #15803d; background: #f0fdf4; }
+.trip-edit-toggle { padding: 5px 9px; border: 1px solid #dbeafe; border-radius: 5px; color: #1d4ed8; background: #fff; font-size: 10px; font-weight: 600; cursor: pointer; }
+.trip-edit-toggle:hover { background: #eff6ff; }
+.trip-edit-row[hidden], .trip-roster-row[hidden], .trip-empty-row[hidden] { display: none; }
+.trip-edit-row > td { padding: 0; border-bottom: 1px solid #dbeafe; }
+.trip-record-form { padding: 15px 18px; background: #f8fbff; }
+.trip-empty-row td { padding: 24px 12px; color: #64748b; font-size: 12px; text-align: center; }
+.trip-dialog { width: min(560px, calc(100vw - 30px)); max-height: calc(100vh - 32px); overflow-y: auto; }
+.trip-dialog form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.trip-dialog label { display: grid; align-content: end; gap: 5px; min-width: 0; color: #475569; font-size: 11px; font-weight: 600; }
+.trip-dialog input, .trip-dialog select { width: 100%; min-width: 0; height: 37px; padding: 0 9px; border: 1px solid #e2e8f0; border-radius: 5px; outline: 0; color: #0f172a; background: #fff; font-size: 12px; }
+.trip-dialog input:focus, .trip-dialog select:focus { border-color: #60a5fa; box-shadow: 0 0 0 2px #dbeafe; }
+.trip-dialog [data-trip-delay-field][hidden] { display: none; }
+.trip-dialog button[type="submit"] { grid-column: 1 / -1; justify-self: start; min-width: 130px; margin-top: 5px; }
 
 @media (max-width: 900px) {
   .trip-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -663,6 +703,12 @@ tbody td { font-size: 12px; }
   .fleet-details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fleet-vehicle-form { gap: 10px; }
   .trip-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .trip-roster-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .trip-filter-toolbar { flex-wrap: wrap; padding-right: 13px; padding-left: 13px; }
+  .trip-filter-toolbar .trip-search { min-width: 100%; }
+  .trip-search input { flex: 1; }
+  .trip-record-form { padding: 12px 13px; }
+  .trip-dialog form { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 }
 
 .brand-logo {

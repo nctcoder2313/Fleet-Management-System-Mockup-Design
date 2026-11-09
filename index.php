@@ -10,24 +10,10 @@ $activeView = is_string($requestedView) && in_array($requestedView, $validViews,
     : 'overview';
 
 $utc = new DateTimeZone('UTC');
-$weekStart = new DateTimeImmutable('now', $utc);
-$weekStart = $weekStart->modify('monday this week')->setTime(0, 0);
-$weekEnd = $weekStart->modify('+6 days');
-$weekStartDate = $weekStart->format('Y-m-d');
-$weekEndDate = $weekEnd->format('Y-m-d');
-$weekRangeLabel = $weekStart->format('Y') === $weekEnd->format('Y')
-    ? ($weekStart->format('m') === $weekEnd->format('m')
-        ? $weekStart->format('M j') . '–' . $weekEnd->format('j, Y')
-        : $weekStart->format('M j') . '–' . $weekEnd->format('M j, Y'))
-    : $weekStart->format('M j, Y') . '–' . $weekEnd->format('M j, Y');
 $monthStart = (new DateTimeImmutable('first day of this month', $utc))->setTime(0, 0);
-$monthEnd = $monthStart->modify('last day of this month');
-$monthStartDate = $monthStart->format('Y-m-d');
-$monthEndDate = $monthEnd->format('Y-m-d');
-$monthLabel = $monthStart->format('F Y');
 $selectedStart = $monthStart;
 $selectedEnd = new DateTimeImmutable('today', $utc);
-// Only Overview consumes the selected UTC dates; invalid query values fall back to this month-to-date.
+// Overview and Reports share the selected UTC dates; invalid query values fall back to this month-to-date.
 $requestedStart = $_GET['start'] ?? null;
 $requestedEnd = $_GET['end'] ?? null;
 $isValidDate = static function ($value): bool {
@@ -69,25 +55,6 @@ while ($weekCursor <= $selectedEnd) {
     ];
     $weekCursor = $weekCursor->modify('+7 days');
 }
-$monthlyWeeks = [];
-$weekCursor = $monthStart->modify('monday this week');
-while ($weekCursor <= $monthEnd) {
-    $weekEnd = $weekCursor->modify('+6 days');
-    $periodStart = $weekCursor < $monthStart ? $monthStart : $weekCursor;
-    $periodEnd = $weekEnd > $monthEnd ? $monthEnd : $weekEnd;
-    $weekKey = $weekCursor->format('Y-m-d');
-    $monthlyWeeks[$weekKey] = [
-        'label' => $periodStart->format('M j') === $periodEnd->format('M j')
-            ? $periodStart->format('M j')
-            : $periodStart->format('M j') . '–' . $periodEnd->format('j'),
-        'utilization_sum' => 0,
-        'fuel_liters' => 0,
-        'days_reported' => 0,
-        'utilization' => null,
-    ];
-    $weekCursor = $weekCursor->modify('+7 days');
-}
-
 $vehicleStats = $db->query(
     'SELECT status, COUNT(*) AS count FROM vehicles GROUP BY status'
 )->fetchAll(PDO::FETCH_ASSOC);
@@ -130,38 +97,6 @@ $allTrips = $db->query(
      FROM trips
      ORDER BY CASE status WHEN \'active\' THEN 0 WHEN \'upcoming\' THEN 1 ELSE 2 END, eta'
 )->fetchAll(PDO::FETCH_ASSOC);
-
-$weeklyTripsStatement = $db->prepare(
-    'SELECT id, status, delay_minutes
-     FROM trips
-     WHERE trip_date BETWEEN :week_start AND :week_end'
-);
-$weeklyTripsStatement->execute(['week_start' => $weekStartDate, 'week_end' => $weekEndDate]);
-$weeklyTrips = $weeklyTripsStatement->fetchAll(PDO::FETCH_ASSOC);
-
-$weeklyTripCounts = [
-    'completed' => 0,
-    'in_progress' => 0,
-    'delayed' => 0,
-    'upcoming' => 0,
-];
-foreach ($weeklyTrips as $weeklyTrip) {
-    if ($weeklyTrip['status'] === 'completed') {
-        $weeklyTripCounts['completed']++;
-    } elseif ($weeklyTrip['status'] === 'upcoming') {
-        $weeklyTripCounts['upcoming']++;
-    } elseif ((int) $weeklyTrip['delay_minutes'] > 0) {
-        $weeklyTripCounts['delayed']++;
-    } else {
-        $weeklyTripCounts['in_progress']++;
-    }
-}
-$weeklyActualTripCount = $weeklyTripCounts['completed']
-    + $weeklyTripCounts['in_progress']
-    + $weeklyTripCounts['delayed'];
-$weeklyTripCompletionRate = $weeklyActualTripCount > 0
-    ? (int) round($weeklyTripCounts['completed'] / $weeklyActualTripCount * 100)
-    : null;
 
 $rangeTripsStatement = $db->prepare(
     'SELECT id, status, delay_minutes
@@ -235,58 +170,6 @@ $drivers = $db->query(
      ORDER BY drivers.on_duty DESC, drivers.name'
 )->fetchAll(PDO::FETCH_ASSOC);
 
-$dailyMetricsStatement = $db->prepare(
-    'SELECT metric_date, utilization, completion_rate, fuel_liters
-     FROM daily_metrics
-     WHERE metric_date BETWEEN :month_start AND :month_end
-     ORDER BY metric_date'
-);
-$dailyMetricsStatement->execute(['month_start' => $monthStartDate, 'month_end' => $monthEndDate]);
-$dailyMetrics = $dailyMetricsStatement->fetchAll(PDO::FETCH_ASSOC);
-foreach ($dailyMetrics as $metric) {
-    $metricDate = new DateTimeImmutable($metric['metric_date'], $utc);
-    $metricWeekKey = $metricDate->modify('monday this week')->format('Y-m-d');
-    if (isset($monthlyWeeks[$metricWeekKey])) {
-        $monthlyWeeks[$metricWeekKey]['utilization_sum'] += (int) $metric['utilization'];
-        $monthlyWeeks[$metricWeekKey]['fuel_liters'] += (int) $metric['fuel_liters'];
-        $monthlyWeeks[$metricWeekKey]['days_reported']++;
-    }
-}
-$monthlyMetricsAreSample = $dailyMetrics === [];
-$monthlyMetricsIncludeSample = $monthlyMetricsAreSample;
-$sampleWeeks = [
-    ['utilization' => 62, 'fuel_liters' => 2100],
-    ['utilization' => 68, 'fuel_liters' => 2350],
-    ['utilization' => 74, 'fuel_liters' => 2210],
-    ['utilization' => 79, 'fuel_liters' => 2680],
-    ['utilization' => 76, 'fuel_liters' => 2460],
-    ['utilization' => 72, 'fuel_liters' => 2290],
-];
-if ($monthlyMetricsAreSample) {
-    $weekIndex = 0;
-    foreach ($monthlyWeeks as &$week) {
-        $sample = $sampleWeeks[$weekIndex % count($sampleWeeks)];
-        $week['utilization'] = $sample['utilization'];
-        $week['fuel_liters'] = $sample['fuel_liters'];
-        $weekIndex++;
-    }
-    unset($week);
-} else {
-    $weekIndex = 0;
-    foreach ($monthlyWeeks as &$week) {
-        if ($week['days_reported'] > 0) {
-            $week['utilization'] = (int) round($week['utilization_sum'] / $week['days_reported']);
-        } else {
-            $sample = $sampleWeeks[$weekIndex % count($sampleWeeks)];
-            $week['utilization'] = $sample['utilization'];
-            $week['fuel_liters'] = $sample['fuel_liters'];
-            $monthlyMetricsIncludeSample = true;
-        }
-        $weekIndex++;
-    }
-    unset($week);
-}
-
 $overviewDailyMetricsStatement = $db->prepare(
     'SELECT metric_date, utilization, fuel_liters
      FROM daily_metrics
@@ -339,15 +222,6 @@ foreach ($overviewWeeks as $weekKey => &$week) {
 }
 unset($week);
 
-$maintenanceStatement = $db->prepare(
-    'SELECT department, COUNT(*) AS issue_count
-     FROM maintenance
-     WHERE state != \'complete\' AND due_date BETWEEN :week_start AND :week_end
-     GROUP BY department
-     ORDER BY issue_count DESC, department'
-);
-$maintenanceStatement->execute(['week_start' => $weekStartDate, 'week_end' => $weekEndDate]);
-$maintenanceByDepartment = $maintenanceStatement->fetchAll(PDO::FETCH_ASSOC);
 $rangeMaintenanceStatement = $db->prepare(
     'SELECT department, COUNT(*) AS issue_count
      FROM maintenance

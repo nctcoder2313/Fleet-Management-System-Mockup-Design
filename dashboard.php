@@ -31,44 +31,6 @@ $tripStatusLabels = [
     'delayed' => ['label' => 'Delayed', 'description' => 'Active with a reported delay', 'color' => '#f59e0b'],
     'upcoming' => ['label' => 'Upcoming', 'description' => 'Not yet in progress', 'color' => '#94a3b8'],
 ];
-$tripDonutCircumference = 2 * M_PI * 40;
-$tripDonutOffset = 0;
-$tripDonutSegments = [];
-foreach ($tripStatusLabels as $status => $metadata) {
-    $count = $weeklyTripCounts[$status];
-    if ($weeklyTrips !== [] && $count > 0) {
-        $length = $count / count($weeklyTrips) * $tripDonutCircumference;
-        $tripDonutSegments[] = [
-            'color' => $metadata['color'],
-            'dasharray' => number_format($length, 2, '.', '') . ' ' . number_format($tripDonutCircumference - $length, 2, '.', ''),
-            'dashoffset' => number_format(-$tripDonutOffset, 2, '.', ''),
-        ];
-        $tripDonutOffset += $length;
-    }
-}
-$fuelChartPoints = [];
-$fuelChartSegments = [];
-$fuelChartMaximum = max(1, ...array_column(array_values($monthlyWeeks), 'fuel_liters'));
-$monthlyWeekCount = count($monthlyWeeks);
-$previousFuelPoint = null;
-foreach (array_values($monthlyWeeks) as $index => $week) {
-    $x = $monthlyWeekCount > 1 ? 70 + $index * 400 / ($monthlyWeekCount - 1) : 270;
-    $value = $week['fuel_liters'];
-    $point = [
-        'x' => $x,
-        'y' => $value === null ? null : 138 - $value / $fuelChartMaximum * 105,
-        'value' => $value,
-        'label' => $week['label'],
-    ];
-    if ($point['y'] !== null && $previousFuelPoint !== null) {
-        $fuelChartSegments[] = 'M ' . number_format($previousFuelPoint['x'], 1, '.', '')
-            . ' ' . number_format($previousFuelPoint['y'], 1, '.', '')
-            . ' L ' . number_format($point['x'], 1, '.', '')
-            . ' ' . number_format($point['y'], 1, '.', '');
-    }
-    $fuelChartPoints[] = $point;
-    $previousFuelPoint = $point['y'] === null ? null : $point;
-}
 $overviewFuelChartMaximum = max(1, ...array_column(array_values($overviewWeeks), 'fuel_liters'));
 $overviewFuelChartPoints = [];
 $overviewFuelChartSegments = [];
@@ -108,7 +70,7 @@ foreach ($tripStatusLabels as $status => $metadata) {
 $views = [
     'overview' => ['title' => 'Dashboard', 'description' => 'Operational fleet, trip, driver, and maintenance performance.'],
     'fleet' => ['title' => 'Fleet status', 'description' => 'Review and update vehicle details, availability, and assignments.'],
-    'trips' => ['title' => 'Trips & assignments', 'description' => 'Review routes and update trip status, driver, and timing.'],
+    'trips' => ['title' => 'Trips & Assignments', 'description' => 'Review routes and update trip status, driver, and timing.'],
     'drivers' => ['title' => 'Drivers', 'description' => 'Review driver availability and update duty status.'],
     'maintenance' => ['title' => 'Maintenance', 'description' => 'Track reported issues, review progress, and update maintenance status.'],
     'reports' => ['title' => 'Reports', 'description' => 'Review weekly utilization, trip status, fuel consumption, and maintenance.'],
@@ -128,18 +90,18 @@ $views = [
   <body class="text-slate-900">
     <div class="app-shell min-h-screen">
         <aside class="sidebar bg-white" aria-label="Main navigation">
-          <a class="brand" href="?view=overview" aria-label="Fleet Management home">
+          <a class="brand" href="?view=overview&amp;start=<?= h($selectedStartDate) ?>&amp;end=<?= h($selectedEndDate) ?>" aria-label="Fleet Management home">
             <img class="brand-logo" src="assets/paragon.webp" alt="Paragon Communications Corp.">
         </a>
 
         <div class="workspace-label">MANAGER WORKSPACE</div>
         <nav class="nav-list">
-          <a class="nav-item <?= $activeView === 'overview' ? 'is-active' : '' ?>" href="?view=overview" title="Overview" <?= $activeView === 'overview' ? 'aria-current="page"' : '' ?>><span class="nav-icon">◫</span>Overview</a>
+          <a class="nav-item <?= $activeView === 'overview' ? 'is-active' : '' ?>" href="?view=overview&amp;start=<?= h($selectedStartDate) ?>&amp;end=<?= h($selectedEndDate) ?>" title="Overview" <?= $activeView === 'overview' ? 'aria-current="page"' : '' ?>><span class="nav-icon">◫</span>Overview</a>
           <a class="nav-item <?= $activeView === 'fleet' ? 'is-active' : '' ?>" href="?view=fleet" title="Fleet status" <?= $activeView === 'fleet' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▤</span>Fleet Status <span class="nav-count"><?= h($totalVehicles) ?></span></a>
           <a class="nav-item <?= $activeView === 'trips' ? 'is-active' : '' ?>" href="?view=trips" title="Trips &amp; assignments" <?= $activeView === 'trips' ? 'aria-current="page"' : '' ?>><span class="nav-icon">↗</span>Trips &amp; Assignments</a>
           <a class="nav-item <?= $activeView === 'drivers' ? 'is-active' : '' ?>" href="?view=drivers" title="Drivers" <?= $activeView === 'drivers' ? 'aria-current="page"' : '' ?>><span class="nav-icon">♙</span>Drivers</a>
           <a class="nav-item <?= $activeView === 'maintenance' ? 'is-active' : '' ?>" href="?view=maintenance" title="Maintenance" <?= $activeView === 'maintenance' ? 'aria-current="page"' : '' ?>><span class="nav-icon">⚙</span>Maintenance <span class="nav-dot"></span></a>
-          <a class="nav-item <?= $activeView === 'reports' ? 'is-active' : '' ?>" href="?view=reports" title="Reports" <?= $activeView === 'reports' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▥</span>Reports</a>
+          <a class="nav-item <?= $activeView === 'reports' ? 'is-active' : '' ?>" href="?view=reports&amp;start=<?= h($selectedStartDate) ?>&amp;end=<?= h($selectedEndDate) ?>" title="Reports" <?= $activeView === 'reports' ? 'aria-current="page"' : '' ?>><span class="nav-icon">▥</span>Reports</a>
           <a class="nav-item <?= $activeView === 'settings' ? 'is-active' : '' ?>" href="?view=settings" title="Settings" <?= $activeView === 'settings' ? 'aria-current="page"' : '' ?>><span class="nav-icon">⚙</span>Settings</a>
         </nav>
 
@@ -162,7 +124,7 @@ $views = [
         <header class="topbar bg-white">
           <div class="breadcrumb"><strong>Fleet Management</strong><span class="crumb-divider">/</span><span><?= h($views[$activeView]['title']) ?></span></div>
           <div class="topbar-actions">
-            <?php if (in_array($activeView, ['fleet', 'trips', 'drivers', 'maintenance'], true)): ?>
+            <?php if (in_array($activeView, ['fleet', 'drivers', 'maintenance'], true)): ?>
             <label class="search-box">
               <span aria-hidden="true">⌕</span>
               <input id="global-search" type="search" placeholder="Search this section..." aria-label="Search this section">
@@ -185,12 +147,12 @@ $views = [
               <p><?= h($views[$activeView]['description']) ?></p>
             </div>
             <div class="heading-actions">
-              <?php if ($activeView === 'overview'): ?>
+              <?php if (in_array($activeView, ['overview', 'reports'], true)): ?>
               <div class="date-picker" id="date-picker">
                 <button class="date-selector" id="date-selector" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="date-picker-popover" data-start="<?= h($selectedStartDate) ?>" data-end="<?= h($selectedEndDate) ?>">
                   <span aria-hidden="true">▦</span><span id="selected-date-label"><?= h($selectedRangeLabel) ?></span><span class="chevron" aria-hidden="true">⌄</span>
                 </button>
-                <div class="date-picker-popover" id="date-picker-popover" role="dialog" aria-label="Select dashboard date range" hidden>
+                <div class="date-picker-popover" id="date-picker-popover" role="dialog" aria-label="Select <?= $activeView === 'overview' ? 'dashboard' : 'reports' ?> date range" hidden>
                   <div class="date-picker-presets" aria-label="Quick date ranges">
                     <button type="button" data-date-preset="today">Today</button>
                     <button type="button" data-date-preset="last-7-days">Last 7 days</button>
@@ -214,6 +176,8 @@ $views = [
               </div>
               <?php elseif ($activeView === 'maintenance'): ?>
               <button class="button button-primary bg-blue-700 text-white" id="report-issue"><span>＋</span> Report an issue</button>
+              <?php elseif ($activeView === 'trips'): ?>
+              <button class="button button-primary bg-blue-700 text-white" id="add-trip"><span>＋</span> Add Trip</button>
               <?php endif; ?>
             </div>
           </section>
@@ -327,7 +291,7 @@ $views = [
               <article class="panel chart-panel bg-white">
                 <div class="panel-heading"><div><h2>Maintenance by department</h2><p>Uncompleted work due <?= h($selectedRangeLabel) ?> UTC</p></div><span class="chart-unit">items</span></div>
                 <div class="department-chart">
-                  <?php $maxDepartmentIssues = max(1, ...array_column($rangeMaintenanceByDepartment, 'issue_count')); ?>
+                  <?php $maxDepartmentIssues = max([1, ...array_column($rangeMaintenanceByDepartment, 'issue_count')]); ?>
                   <?php foreach ($rangeMaintenanceByDepartment as $department): ?>
                   <div class="department-row"><div><span><?= h($department['department']) ?></span><strong><?= h($department['issue_count']) ?></strong></div><i style="--bar-width: <?= h((int) round($department['issue_count'] / $maxDepartmentIssues * 100)) ?>%"></i></div>
                   <?php endforeach; ?>
@@ -616,25 +580,71 @@ $views = [
             <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Upcoming</span><span class="metric-icon icon-violet">◷</span></span><span class="metric-value"><?= h($tripCounts['upcoming']) ?></span><span class="metric-foot">Not yet started</span></article>
             <article class="metric-card bg-white"><span class="metric-top"><span class="metric-label">Completed</span><span class="metric-icon icon-green">✓</span></span><span class="metric-value"><?= h($tripCounts['completed']) ?></span><span class="metric-foot">Finished trips</span></article>
           </section>
-          <section class="workspace-grid" aria-label="Editable trip records">
-            <?php foreach ($allTrips as $trip): ?>
-            <article class="panel workspace-card search-item" data-search="<?= h(strtolower(implode(' ', $trip))) ?>">
-              <div class="panel-heading"><div><h2><?= h($trip['id']) ?></h2><p><?= h($trip['vehicle_code']) ?> · <?= h($trip['driver_name']) ?></p></div><span class="count-pill"><?= h(ucfirst($trip['status'])) ?></span></div>
-              <form class="record-form" data-record-form>
-                <input type="hidden" name="action" value="update-trip">
-                <input type="hidden" name="id" value="<?= h($trip['id']) ?>">
-                <label>Vehicle<select name="vehicle_code"><?php foreach ($vehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>" <?= $trip['vehicle_code'] === $vehicle['vehicle_code'] ? 'selected' : '' ?>><?= h($vehicle['vehicle_code']) ?></option><?php endforeach; ?></select></label>
-                <label>Driver<select name="driver_name"><?php foreach ($drivers as $driver): ?><option value="<?= h($driver['name']) ?>" <?= $trip['driver_name'] === $driver['name'] ? 'selected' : '' ?>><?= h($driver['name']) ?></option><?php endforeach; ?></select></label>
-                <label>Origin<input name="origin" maxlength="120" required value="<?= h($trip['origin']) ?>"></label>
-                <label>Destination<input name="destination" maxlength="120" required value="<?= h($trip['destination']) ?>"></label>
-                <label>Status<select name="status"><?php foreach (['active', 'upcoming', 'completed'] as $status): ?><option value="<?= h($status) ?>" <?= $trip['status'] === $status ? 'selected' : '' ?>><?= h(ucfirst($status)) ?></option><?php endforeach; ?></select></label>
-                <label>Trip date<input name="trip_date" type="date" value="<?= h($trip['trip_date'] ?? '') ?>"><small class="field-help">Leave blank if the date is unknown; undated trips are excluded from weekly reports.</small></label>
-                <label>Delay (minutes)<input name="delay_minutes" type="number" min="0" required value="<?= h($trip['delay_minutes']) ?>"></label>
-                <label>ETA<input name="eta" maxlength="30" required value="<?= h($trip['eta']) ?>"></label>
-                <button class="button button-primary bg-blue-700 text-white" type="submit">Save trip</button>
-              </form>
-            </article>
-            <?php endforeach; ?>
+          <section class="panel trip-roster" aria-label="Editable trip records">
+            <div class="panel-heading trip-roster-heading">
+              <div><h2>Trip assignments</h2><p>Search, filter, and edit scheduled trips</p></div>
+              <span class="count-pill"><span id="trip-visible-count"><?= h($totalTrips) ?></span> of <?= h($totalTrips) ?> trips</span>
+            </div>
+            <div class="table-toolbar trip-filter-toolbar">
+              <label class="trip-search" for="trip-roster-search">Search trips<input id="trip-roster-search" type="search" placeholder="Trip, route, driver..."></label>
+              <label for="trip-status-filter">Status</label>
+              <select id="trip-status-filter">
+                <option value="all">All statuses</option>
+                <option value="in_progress">In Progress</option>
+                <option value="delayed">Delayed</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            <div class="table-scroll trip-table-scroll">
+              <table class="trip-table">
+                <thead><tr><th>TRIP ID / NAME</th><th>ROUTE</th><th>VEHICLE</th><th>DRIVER</th><th>DATE / ETA</th><th>STATUS</th><th><span class="sr-only">ACTIONS</span></th></tr></thead>
+                <tbody>
+                  <?php foreach ($allTrips as $tripIndex => $trip): ?>
+                  <?php
+                  $tripDisplayStatus = $trip['status'] === 'active'
+                      ? ((int) $trip['delay_minutes'] > 0 ? 'delayed' : 'in_progress')
+                      : $trip['status'];
+                  $tripStatusNames = ['in_progress' => 'In Progress', 'delayed' => 'Delayed', 'upcoming' => 'Upcoming', 'completed' => 'Completed'];
+                  $tripDateLabel = $trip['trip_date'] !== null && $trip['trip_date'] !== ''
+                      ? (new DateTimeImmutable($trip['trip_date'], $utc))->format('M j, Y')
+                      : 'Date not recorded';
+                  $tripSearch = strtolower(implode(' ', [
+                      $trip['id'], $trip['origin'], $trip['destination'], $trip['vehicle_code'],
+                      $trip['driver_name'], $tripDateLabel, $trip['eta'], $tripStatusNames[$tripDisplayStatus],
+                  ]));
+                  ?>
+                  <tr class="trip-roster-row" data-trip-row data-trip-status="<?= h($tripDisplayStatus) ?>" data-search="<?= h($tripSearch) ?>" aria-expanded="false" aria-controls="trip-edit-<?= h($tripIndex) ?>">
+                    <td><strong class="trip-roster-id"><?= h($trip['id']) ?></strong></td>
+                    <td><span class="trip-route"><?= h($trip['origin']) ?> <span aria-hidden="true">→</span> <?= h($trip['destination']) ?></span></td>
+                    <td><?= h($trip['vehicle_code']) ?></td>
+                    <td><?= h($trip['driver_name']) ?></td>
+                    <td><span class="trip-date"><?= h($tripDateLabel) ?></span><small class="trip-eta">ETA <?= h($trip['eta']) ?></small></td>
+                    <td><span class="trip-status-badge trip-status-<?= h($tripDisplayStatus) ?>"><?= h($tripStatusNames[$tripDisplayStatus]) ?></span></td>
+                    <td><button class="trip-edit-toggle" type="button" aria-expanded="false" aria-controls="trip-edit-<?= h($tripIndex) ?>">Edit</button></td>
+                  </tr>
+                  <tr class="trip-edit-row" id="trip-edit-<?= h($tripIndex) ?>" data-trip-edit-row hidden>
+                    <td colspan="7">
+                      <form class="record-form trip-record-form" data-record-form>
+                        <input type="hidden" name="action" value="update-trip">
+                        <input type="hidden" name="id" value="<?= h($trip['id']) ?>">
+                        <label>Vehicle<select name="vehicle_code"><?php foreach ($vehicles as $vehicle): ?><option value="<?= h($vehicle['vehicle_code']) ?>" <?= $trip['vehicle_code'] === $vehicle['vehicle_code'] ? 'selected' : '' ?>><?= h($vehicle['vehicle_code']) ?></option><?php endforeach; ?></select></label>
+                        <label>Driver<select name="driver_name"><?php foreach ($drivers as $driver): ?><option value="<?= h($driver['name']) ?>" <?= $trip['driver_name'] === $driver['name'] ? 'selected' : '' ?>><?= h($driver['name']) ?></option><?php endforeach; ?></select></label>
+                        <label>Origin<input name="origin" maxlength="120" required value="<?= h($trip['origin']) ?>"></label>
+                        <label>Destination<input name="destination" maxlength="120" required value="<?= h($trip['destination']) ?>"></label>
+                        <label>Status<select name="status"><?php foreach (['active', 'upcoming', 'completed'] as $status): ?><option value="<?= h($status) ?>" <?= $trip['status'] === $status ? 'selected' : '' ?>><?= h($status === 'active' ? 'In Progress' : ucfirst($status)) ?></option><?php endforeach; ?></select></label>
+                        <label>Trip date<input name="trip_date" type="date" value="<?= h($trip['trip_date'] ?? '') ?>"><small class="field-help">Leave blank if the date is unknown; undated trips are excluded from reports.</small></label>
+                        <label>Delay (minutes)<input name="delay_minutes" type="number" min="0" required value="<?= h($trip['delay_minutes']) ?>"></label>
+                        <label>ETA<input name="eta" maxlength="30" required value="<?= h($trip['eta']) ?>"></label>
+                        <button class="button button-primary bg-blue-700 text-white" type="submit">Save trip</button>
+                      </form>
+                    </td>
+                  </tr>
+                  <?php endforeach; ?>
+                  <tr class="trip-empty-row" id="trip-list-empty" hidden><td colspan="7">No trips match your search or status filter.</td></tr>
+                </tbody>
+              </table>
+            </div>
           </section>
           <?php elseif ($activeView === 'drivers'): ?>
           <section class="metrics-grid manager-metrics driver-summary" aria-label="Driver summary">
@@ -742,12 +752,12 @@ $views = [
           </section>
           <?php elseif ($activeView === 'reports'): ?>
           <section class="performance-section" aria-label="Fleet performance reports">
-            <div class="section-heading"><h2>Monthly performance</h2><span><?= h($monthLabel) ?> · weeks start Monday · UTC</span></div>
+            <div class="section-heading"><h2>Fleet performance</h2><span><?= h($selectedRangeLabel) ?> · weeks start Monday · UTC</span></div>
             <div class="performance-grid">
               <article class="panel chart-panel bg-white">
-                <div class="panel-heading"><div><h2>Average vehicle utilization</h2><p><?= $monthlyMetricsIncludeSample ? 'Sample data · missing weeks are illustrative' : 'Sample data · average of reported daily utilization' ?></p></div><span class="chart-unit">%</span></div>
-                <div class="monthly-utilization-chart" role="img" aria-label="Average vehicle utilization by week for <?= h($monthLabel) ?>, sample data">
-                  <?php foreach (array_values($monthlyWeeks) as $week): ?>
+                <div class="panel-heading"><div><h2>Average vehicle utilization</h2><p><?= $overviewMetricsIncludeSample ? 'Sample data included for dates without reported metrics' : 'Average of reported daily utilization' ?></p></div><span class="chart-unit">%</span></div>
+                <div class="monthly-utilization-chart" role="img" aria-label="Average vehicle utilization by week for <?= h($selectedRangeLabel) ?>">
+                  <?php foreach (array_values($overviewWeeks) as $week): ?>
                   <div class="monthly-bar-column">
                     <span class="monthly-bar-value"><?= $week['utilization'] === null ? 'Not reported' : h($week['utilization']) . '%' ?></span>
                     <i class="monthly-utilization-bar<?= $week['utilization'] === null ? ' is-unreported' : '' ?>" style="--bar-height: <?= $week['utilization'] === null ? '0px' : h(number_format($week['utilization'] * 1.05, 1, '.', '')) . 'px' ?>"></i>
@@ -757,52 +767,52 @@ $views = [
                 </div>
               </article>
               <article class="panel chart-panel bg-white">
-                <div class="panel-heading"><div><h2>Weekly trip status</h2><p><?= h($weekRangeLabel) ?> UTC · Completion rate: <?= $weeklyTripCompletionRate === null ? 'Not available' : h($weeklyTripCompletionRate) . '%' ?></p></div><span class="chart-unit">trips</span></div>
+                <div class="panel-heading"><div><h2>Trip status</h2><p><?= h($selectedRangeLabel) ?> UTC · Completion rate: <?= $rangeTripCompletionRate === null ? 'Not available' : h($rangeTripCompletionRate) . '%' ?></p></div><span class="chart-unit">trips</span></div>
                 <div class="trip-status-layout">
-                  <?php if ($weeklyTrips !== []): ?>
-                  <svg class="trip-donut" viewBox="0 0 120 120" role="img" aria-label="Weekly distribution of <?= h(count($weeklyTrips)) ?> dated trips by status">
+                  <?php if ($rangeTrips !== []): ?>
+                  <svg class="trip-donut" viewBox="0 0 120 120" role="img" aria-label="Trip status distribution for <?= h($selectedRangeLabel) ?>">
                     <circle class="trip-donut-track" cx="60" cy="60" r="40"></circle>
-                    <?php foreach ($tripDonutSegments as $segment): ?><circle class="trip-donut-segment" cx="60" cy="60" r="40" stroke="<?= h($segment['color']) ?>" stroke-dasharray="<?= h($segment['dasharray']) ?>" stroke-dashoffset="<?= h($segment['dashoffset']) ?>"></circle><?php endforeach; ?>
-                    <text class="trip-donut-total" x="60" y="57"><?= h(count($weeklyTrips)) ?></text><text class="trip-donut-caption" x="60" y="72">trips</text>
+                    <?php foreach ($overviewTripDonutSegments as $segment): ?><circle class="trip-donut-segment" cx="60" cy="60" r="40" stroke="<?= h($segment['color']) ?>" stroke-dasharray="<?= h($segment['dasharray']) ?>" stroke-dashoffset="<?= h($segment['dashoffset']) ?>"></circle><?php endforeach; ?>
+                    <text class="trip-donut-total" x="60" y="57"><?= h(count($rangeTrips)) ?></text><text class="trip-donut-caption" x="60" y="72">trips</text>
                   </svg>
                   <ul class="trip-status-legend">
-                    <?php foreach ($tripStatusLabels as $status => $metadata): $statusCount = $weeklyTripCounts[$status]; ?>
-                    <li><span class="trip-legend-name"><i style="--status-color: <?= h($metadata['color']) ?>"></i><span><strong><?= h($metadata['label']) ?></strong><small><?= h($metadata['description']) ?></small></span></span><span class="trip-legend-value"><?= h(number_format($statusCount / count($weeklyTrips) * 100, 1)) ?>%<small><?= h($statusCount) ?> trips</small></span></li>
+                    <?php foreach ($tripStatusLabels as $status => $metadata): $statusCount = $rangeTripCounts[$status]; ?>
+                    <li><span class="trip-legend-name"><i style="--status-color: <?= h($metadata['color']) ?>"></i><span><strong><?= h($metadata['label']) ?></strong><small><?= h($metadata['description']) ?></small></span></span><span class="trip-legend-value"><?= h(number_format($statusCount / count($rangeTrips) * 100, 1)) ?>%<small><?= h($statusCount) ?> trips</small></span></li>
                     <?php endforeach; ?>
                   </ul>
                   <?php if ($undatedTripCount > 0): ?><p class="trip-legend-note"><?= h($undatedTripCount) ?> undated trips excluded.</p><?php endif; ?>
                   <?php else: ?>
-                  <p class="chart-empty">No dated trips are available for this week. <?= $undatedTripCount > 0 ? h($undatedTripCount) . ' undated trips are excluded.' : 'No trip dates were reported.' ?></p>
+                  <p class="chart-empty">No dated trips are available for this range. <?= $undatedTripCount > 0 ? h($undatedTripCount) . ' undated trips are excluded.' : 'No trip dates were reported.' ?></p>
                   <?php endif; ?>
                 </div>
               </article>
               <article class="panel chart-panel bg-white">
-                <div class="panel-heading"><div><h2>Maintenance by department</h2><p>Uncompleted work due <?= h($weekRangeLabel) ?> UTC</p></div><span class="chart-unit">items</span></div>
+                <div class="panel-heading"><div><h2>Maintenance by department</h2><p>Uncompleted work due <?= h($selectedRangeLabel) ?> UTC</p></div><span class="chart-unit">items</span></div>
                 <div class="department-chart">
-                  <?php $maxDepartmentIssues = max(1, ...array_column($maintenanceByDepartment, 'issue_count')); ?>
-                  <?php foreach ($maintenanceByDepartment as $department): ?><div class="department-row"><div><span><?= h($department['department']) ?></span><strong><?= h($department['issue_count']) ?></strong></div><i style="--bar-width: <?= h((int) round($department['issue_count'] / $maxDepartmentIssues * 100)) ?>%"></i></div><?php endforeach; ?>
-                  <?php if ($maintenanceByDepartment === []): ?><p class="chart-empty">No uncompleted maintenance due this week.</p><?php endif; ?>
+                  <?php $maxDepartmentIssues = max([1, ...array_column($rangeMaintenanceByDepartment, 'issue_count')]); ?>
+                  <?php foreach ($rangeMaintenanceByDepartment as $department): ?><div class="department-row"><div><span><?= h($department['department']) ?></span><strong><?= h($department['issue_count']) ?></strong></div><i style="--bar-width: <?= h((int) round($department['issue_count'] / $maxDepartmentIssues * 100)) ?>%"></i></div><?php endforeach; ?>
+                  <?php if ($rangeMaintenanceByDepartment === []): ?><p class="chart-empty">No uncompleted maintenance due in this range.</p><?php endif; ?>
                 </div>
               </article>
               <article class="panel chart-panel bg-white">
-                <div class="panel-heading"><div><h2>Fuel consumption by week</h2><p><?= $monthlyMetricsIncludeSample ? 'Sample data · missing weeks are illustrative' : 'Sample data · reported weekly totals' ?></p></div><span class="chart-unit">L</span></div>
+                <div class="panel-heading"><div><h2>Fuel consumption by week</h2><p><?= $overviewMetricsIncludeSample ? 'Sample data included for dates without reported metrics' : 'Total fuel consumed each week' ?></p></div><span class="chart-unit">L</span></div>
                 <div class="monthly-fuel-chart">
-                  <svg viewBox="0 0 500 170" role="img" aria-label="Fuel consumption in liters by week for <?= h($monthLabel) ?>, sample data">
+                  <svg viewBox="0 0 500 170" role="img" aria-label="Fuel consumption in liters by week for <?= h($selectedRangeLabel) ?>">
                     <line class="fuel-gridline" x1="42" y1="33" x2="485" y2="33"></line>
                     <line class="fuel-gridline" x1="42" y1="85" x2="485" y2="85"></line>
                     <line class="fuel-gridline" x1="42" y1="138" x2="485" y2="138"></line>
-                    <text class="fuel-axis-label" x="36" y="29"><?= h(number_format($fuelChartMaximum)) ?></text>
+                    <text class="fuel-axis-label" x="36" y="29"><?= h(number_format($overviewFuelChartMaximum)) ?></text>
                     <text class="fuel-axis-label" x="36" y="134">0</text>
-                    <?php foreach ($fuelChartSegments as $segment): ?><path class="fuel-line-segment" d="<?= h($segment) ?>"></path><?php endforeach; ?>
-                    <?php foreach ($fuelChartPoints as $point): ?>
+                    <?php foreach ($overviewFuelChartSegments as $segment): ?><path class="fuel-line-segment" d="<?= h($segment) ?>"></path><?php endforeach; ?>
+                    <?php foreach ($overviewFuelChartPoints as $point): ?>
                     <?php if ($point['value'] !== null): ?>
                     <circle class="fuel-line-point" cx="<?= h(number_format($point['x'], 1, '.', '')) ?>" cy="<?= h(number_format($point['y'], 1, '.', '')) ?>" r="4"><title><?= h($point['label']) ?>: <?= h(number_format($point['value'])) ?> L</title></circle>
                     <text class="fuel-point-label" x="<?= h(number_format($point['x'], 1, '.', '')) ?>" y="<?= h(number_format($point['y'] - 9, 1, '.', '')) ?>"><?= h(number_format($point['value'])) ?></text>
                     <?php endif; ?>
                     <?php endforeach; ?>
                   </svg>
-                  <div class="fuel-week-labels" style="grid-template-columns: repeat(<?= h(count($fuelChartPoints)) ?>, minmax(0, 1fr))">
-                    <?php foreach ($fuelChartPoints as $point): ?><span><strong><?= h($point['label']) ?></strong><small><?= $point['value'] === null ? 'Not reported' : h(number_format($point['value'])) . ' L' ?></small></span><?php endforeach; ?>
+                  <div class="fuel-week-labels" style="grid-template-columns: repeat(<?= h(count($overviewFuelChartPoints)) ?>, minmax(0, 1fr))">
+                    <?php foreach ($overviewFuelChartPoints as $point): ?><span><strong><?= h($point['label']) ?></strong><small><?= $point['value'] === null ? 'Not reported' : h(number_format($point['value'])) . ' L' ?></small></span><?php endforeach; ?>
                   </div>
                 </div>
               </article>
@@ -890,6 +900,47 @@ $views = [
         <button class="button button-primary bg-blue-700 text-white" type="submit">Save driver</button>
       </form>
     </dialog>
+    <?php if ($activeView === 'trips'): ?>
+    <dialog class="detail-dialog trip-dialog" id="add-trip-dialog">
+      <div class="dialog-top"><span class="dialog-icon">＋</span><button class="dialog-close" type="button" aria-label="Close dialog">×</button></div>
+      <h2>Add trip assignment</h2>
+      <p class="dialog-intro">Enter the route, assignment, and schedule details.</p>
+      <form id="add-trip-form">
+        <input type="hidden" name="action" value="add-trip">
+        <label for="new-trip-id">Trip ID / Name<input id="new-trip-id" name="id" maxlength="80" placeholder="e.g. TRIP-2841" required></label>
+        <label for="new-trip-origin">Origin<input id="new-trip-origin" name="origin" maxlength="120" required></label>
+        <label for="new-trip-destination">Destination<input id="new-trip-destination" name="destination" maxlength="120" required></label>
+        <label for="new-trip-vehicle">Vehicle
+          <select id="new-trip-vehicle" name="vehicle_code" required>
+            <option value="">Select a vehicle</option>
+            <?php foreach ($vehicles as $vehicle): ?>
+            <option value="<?= h($vehicle['vehicle_code']) ?>"><?= h($vehicle['vehicle_code']) ?> · <?= h($vehicle['make']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <label for="new-trip-driver">Driver
+          <select id="new-trip-driver" name="driver_name" required>
+            <option value="">Select a driver</option>
+            <?php foreach ($drivers as $driver): ?>
+            <option value="<?= h($driver['name']) ?>"><?= h($driver['name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <label for="new-trip-date">Trip date<input id="new-trip-date" name="trip_date" type="date" value="<?= h(gmdate('Y-m-d')) ?>" required></label>
+        <label for="new-trip-eta">ETA<input id="new-trip-eta" name="eta" maxlength="30" placeholder="e.g. 10:30 AM" required></label>
+        <label for="new-trip-status">Status
+          <select id="new-trip-status" name="status" required>
+            <option value="active">In Progress</option>
+            <option value="delayed">Delayed</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="completed">Completed</option>
+          </select>
+        </label>
+        <label for="new-trip-delay" data-trip-delay-field hidden>Delay (minutes)<input id="new-trip-delay" name="delay_minutes" type="number" min="1" placeholder="Enter reported delay" disabled></label>
+        <button class="button button-primary dialog-done bg-blue-700 text-white" type="submit">Add trip</button>
+      </form>
+    </dialog>
+    <?php endif; ?>
     <script src="app.js"></script>
   </body>
 </html>

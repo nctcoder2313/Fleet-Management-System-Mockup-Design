@@ -2,19 +2,26 @@ const vehicleRows = [...document.querySelectorAll("#vehicle-rows tr")];
 const fleetVehicleRows = [...document.querySelectorAll("[data-fleet-row]")];
 const vehicleFilterButtons = [...document.querySelectorAll("[data-vehicle-filter]")];
 const tripItems = [...document.querySelectorAll(".trip-item")];
+const tripRosterRows = [...document.querySelectorAll("[data-trip-row]")];
 const driverRows = [...document.querySelectorAll("[data-driver-row]")];
 const filterTabs = [...document.querySelectorAll("[data-table-filter]")];
 const searchInput = document.querySelector("#global-search");
+const tripSearchInput = document.querySelector("#trip-roster-search");
+const searchTarget = tripSearchInput || searchInput;
 const emptyState = document.querySelector("#fleet-empty");
 const tripsEmptyState = document.querySelector("#trips-empty");
 const driverEmptyState = document.querySelector("#driver-empty");
 const driverVisibleCount = document.querySelector("#driver-visible-count");
 const fleetVehicleEmpty = document.querySelector("#fleet-vehicle-empty");
 const fleetVehicleVisibleCount = document.querySelector("#fleet-vehicle-visible-count");
+const tripStatusFilter = document.querySelector("#trip-status-filter");
+const tripVisibleCount = document.querySelector("#trip-visible-count");
+const tripListEmpty = document.querySelector("#trip-list-empty");
 const tableCount = document.querySelector("#table-count");
 const toast = document.querySelector("#toast");
 const detailDialog = document.querySelector("#detail-dialog");
 const issueDialog = document.querySelector("#issue-dialog");
+const addTripDialog = document.querySelector("#add-trip-dialog");
 const issueDetailDialog = document.querySelector("#issue-detail-dialog");
 const driverDetailDialog = document.querySelector("#driver-detail-dialog");
 let activeFilter = "all";
@@ -23,6 +30,7 @@ let toastTimeout;
 
 function updateFleet() {
   const query = searchInput?.value.trim().toLowerCase() || "";
+  const tripQuery = tripSearchInput?.value.trim().toLowerCase() || query;
   let visibleCount = 0;
 
   vehicleRows.forEach((row) => {
@@ -43,6 +51,20 @@ function updateFleet() {
 
   if (emptyState) emptyState.hidden = visibleCount > 0;
   if (tripsEmptyState) tripsEmptyState.hidden = visibleTrips > 0;
+  const tripStatus = tripStatusFilter?.value || "all";
+  let visibleTripRows = 0;
+  tripRosterRows.forEach((row) => {
+    const matchesSearch = !tripQuery || row.dataset.search.includes(tripQuery);
+    const matchesStatus = tripStatus === "all" || row.dataset.tripStatus === tripStatus;
+    row.hidden = !matchesSearch || !matchesStatus;
+    const editRow = row.nextElementSibling;
+    if (editRow?.matches("[data-trip-edit-row]")) {
+      editRow.hidden = row.hidden || row.getAttribute("aria-expanded") !== "true";
+    }
+    if (!row.hidden) visibleTripRows += 1;
+  });
+  if (tripVisibleCount) tripVisibleCount.textContent = String(visibleTripRows);
+  if (tripListEmpty) tripListEmpty.hidden = visibleTripRows > 0;
   if (tableCount) tableCount.textContent = `Showing ${visibleCount} of ${tableCount.dataset.total} vehicles`;
   document.querySelectorAll(".search-item").forEach((item) => {
     if (!item.matches("[data-fleet-row]")) {
@@ -128,6 +150,20 @@ fleetVehicleRows.forEach((row) => {
   });
 });
 searchInput?.addEventListener("input", updateFleet);
+tripSearchInput?.addEventListener("input", updateFleet);
+tripStatusFilter?.addEventListener("change", updateFleet);
+tripRosterRows.forEach((row) => {
+  const toggle = row.querySelector(".trip-edit-toggle");
+  toggle?.addEventListener("click", () => {
+    const editRow = row.nextElementSibling;
+    if (!editRow?.matches("[data-trip-edit-row]")) return;
+    const expanded = row.getAttribute("aria-expanded") === "true";
+    row.setAttribute("aria-expanded", String(!expanded));
+    toggle.setAttribute("aria-expanded", String(!expanded));
+    toggle.textContent = expanded ? "Edit" : "Close";
+    editRow.hidden = expanded;
+  });
+});
 document.querySelectorAll("[data-detail]").forEach((button) => {
   button.addEventListener("click", () => openDetails(button.dataset.detail));
 });
@@ -158,6 +194,48 @@ document.querySelectorAll("[data-maintenance-request]").forEach((button) => {
   });
 });
 document.querySelector("#report-issue")?.addEventListener("click", () => issueDialog.showModal());
+document.querySelector("#add-trip")?.addEventListener("click", () => addTripDialog.showModal());
+
+const addTripForm = document.querySelector("#add-trip-form");
+if (addTripForm) {
+  const statusField = addTripForm.elements.status;
+  const delayField = addTripForm.elements.delay_minutes;
+  const delayLabel = addTripForm.querySelector("[data-trip-delay-field]");
+  const updateDelayField = () => {
+    const isDelayed = statusField.value === "delayed";
+    delayLabel.hidden = !isDelayed;
+    delayField.disabled = !isDelayed;
+    delayField.required = isDelayed;
+    delayField.value = isDelayed ? delayField.value : "";
+  };
+  statusField.addEventListener("change", updateDelayField);
+  updateDelayField();
+  addTripForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const submitButton = addTripForm.querySelector('[type="submit"]');
+    submitButton.disabled = true;
+    const payload = Object.fromEntries(new FormData(addTripForm).entries());
+
+    try {
+      const response = await fetch("api.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "The trip could not be added.");
+      showToast(result.message);
+      addTripForm.reset();
+      updateDelayField();
+      addTripDialog.close();
+      window.setTimeout(() => window.location.reload(), 650);
+    } catch (error) {
+      showToast(error.message || "The trip could not be added. Please try again.");
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+}
 
 const issueStatusLabels = {
   awaiting_review: "Awaiting Review",
@@ -341,9 +419,9 @@ document.querySelectorAll("[data-record-form]").forEach((form) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (searchInput && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+  if (searchTarget && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
     event.preventDefault();
-    searchInput.focus();
+    searchTarget.focus();
   }
 });
 
@@ -496,9 +574,8 @@ if (datePicker) {
   datePicker.querySelector("#calendar-cancel").addEventListener("click", () => closePicker(true));
   applyButton.addEventListener("click", () => {
     if (rangeAnchor !== null || !draftStart || !draftEnd) return;
-    // Applying the selection reloads Overview with validated start/end query parameters.
+    // Applying the selection reloads the current performance page with validated start/end query parameters.
     const url = new URL(window.location.href);
-    url.searchParams.set("view", "overview");
     url.searchParams.set("start", draftStart);
     url.searchParams.set("end", draftEnd);
     window.location.assign(url);

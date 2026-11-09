@@ -173,6 +173,59 @@ try {
         respond(200, ['message' => 'Vehicle updated.']);
     }
 
+    if (($payload['action'] ?? '') === 'add-trip') {
+        $tripId = trim((string) ($payload['id'] ?? ''));
+        $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
+        $driverName = trim((string) ($payload['driver_name'] ?? ''));
+        $origin = trim((string) ($payload['origin'] ?? ''));
+        $destination = trim((string) ($payload['destination'] ?? ''));
+        $status = (string) ($payload['status'] ?? '');
+        $delayMinutesInput = $payload['delay_minutes'] ?? '';
+        $delayMinutes = $delayMinutesInput === '' ? 0 : filter_var($delayMinutesInput, FILTER_VALIDATE_INT);
+        $eta = trim((string) ($payload['eta'] ?? ''));
+        $tripDate = trim((string) ($payload['trip_date'] ?? ''));
+
+        if ($tripId === '' || strlen($tripId) > 80 || $vehicleCode === ''
+            || $driverName === '' || strlen($driverName) > 100
+            || $origin === '' || strlen($origin) > 120 || $destination === '' || strlen($destination) > 120
+            || !in_array($status, ['active', 'delayed', 'upcoming', 'completed'], true)
+            || $delayMinutes === false || $delayMinutes < 0 || ($status === 'delayed' && $delayMinutes < 1)
+            || $eta === '' || strlen($eta) > 30 || !validDate($tripDate)) {
+            respond(422, ['error' => 'Check the trip fields and provide valid values.']);
+        }
+
+        $vehicleExists = $db->prepare('SELECT 1 FROM vehicles WHERE vehicle_code = :vehicle_code');
+        $vehicleExists->execute(['vehicle_code' => $vehicleCode]);
+        $driverExists = $db->prepare('SELECT 1 FROM drivers WHERE name = :driver_name');
+        $driverExists->execute(['driver_name' => $driverName]);
+        if (!$vehicleExists->fetchColumn() || !$driverExists->fetchColumn()) {
+            respond(422, ['error' => 'Choose an existing vehicle and driver for this trip.']);
+        }
+
+        $tripExists = $db->prepare('SELECT 1 FROM trips WHERE id = :id');
+        $tripExists->execute(['id' => $tripId]);
+        if ($tripExists->fetchColumn()) {
+            respond(409, ['error' => 'A trip with that ID already exists.']);
+        }
+
+        $statement = $db->prepare(
+            'INSERT INTO trips (id, vehicle_code, driver_name, origin, destination, status, delay_minutes, eta, trip_date)
+             VALUES (:id, :vehicle_code, :driver_name, :origin, :destination, :status, :delay_minutes, :eta, :trip_date)'
+        );
+        $statement->execute([
+            'id' => $tripId,
+            'vehicle_code' => $vehicleCode,
+            'driver_name' => $driverName,
+            'origin' => $origin,
+            'destination' => $destination,
+            'status' => $status === 'delayed' ? 'active' : $status,
+            'delay_minutes' => $status === 'delayed' ? $delayMinutes : 0,
+            'eta' => $eta,
+            'trip_date' => $tripDate,
+        ]);
+        respond(201, ['message' => 'Trip added.']);
+    }
+
     if (($payload['action'] ?? '') === 'update-trip') {
         $tripId = trim((string) ($payload['id'] ?? ''));
         $vehicleCode = trim((string) ($payload['vehicle_code'] ?? ''));
