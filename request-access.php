@@ -145,9 +145,8 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
 
         @media (min-width: 768px) and (min-height: 640px) {
             body > main {
-                height: 100vh;
-                height: 100dvh;
-                min-height: 0;
+                min-height: 100vh;
+                min-height: 100dvh;
             }
         }
 
