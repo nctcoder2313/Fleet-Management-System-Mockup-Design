@@ -226,7 +226,7 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
                         Your password is stored securely and your account will be created after approval.
                     </p>
                     <p class="text-xs leading-5 text-slate-600">
-                        Admin and Head Admin access requires approval from an existing Head Admin.
+                        Head Admin access requires approval from an existing Head Admin.
                     </p>
                     <button class="w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
                         Submit request
