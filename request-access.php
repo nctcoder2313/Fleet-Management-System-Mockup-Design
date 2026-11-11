@@ -22,13 +22,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET'
     $notice = $_SESSION['access_request_notice'];
     unset($_SESSION['access_request_notice']);
 }
-$name = '';
-$email = '';
+
+$fname = '';
+$mname = '';
+$lname = '';
+$officialEmail = '';
+$personalEmail = '';
 $role = '';
 $reason = '';
 $password = '';
 $passwordConfirmation = '';
-$roles = ['accounting', 'manager', 'admin', 'head_admin'];
+$allowedRoles = ['accounting', 'manager', 'admin', 'head-admin'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $submittedToken = $_POST['csrf_token'] ?? '';
@@ -36,58 +40,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         http_response_code(400);
         $error = 'Your session expired. Refresh the page and try again.';
     } else {
-        $name = trim((string) ($_POST['name'] ?? ''));
-        $email = filter_var(trim((string) ($_POST['email'] ?? '')), FILTER_VALIDATE_EMAIL) ?: '';
-        $role = (string) ($_POST['role'] ?? '');
+        $fname = trim((string) ($_POST['fname'] ?? ''));
+        $mname = trim((string) ($_POST['mname'] ?? ''));
+        $lname = trim((string) ($_POST['lname'] ?? ''));
+        $officialEmail = strtolower(trim((string) ($_POST['official_email'] ?? '')));
+        $personalEmail = strtolower(trim((string) ($_POST['personal_email'] ?? '')));
+        $rawRole = strtolower(trim((string) ($_POST['role'] ?? '')));
+        $role = $rawRole === 'head_admin' ? 'head-admin' : $rawRole;
         $reason = trim((string) ($_POST['reason'] ?? ''));
         $password = (string) ($_POST['password'] ?? '');
         $passwordConfirmation = (string) ($_POST['password_confirmation'] ?? '');
 
-        if ($name === '' || strlen($name) > 120 || $email === '' || strlen($email) > 254
-            || !in_array($role, $roles, true) || strlen($reason) > 1000) {
-            $error = 'Check your details and try again. Reason for access must be 1,000 characters or fewer.';
+        // Matches validation in fleet_backend/auth/request_account.php
+        if ($fname === '' || $lname === '' || $officialEmail === '' || $personalEmail === '' || $password === '') {
+            $error = 'Validation Error: First name, last name, official company email, personal recovery email, and password are required.';
+        } elseif (!filter_var($officialEmail, FILTER_VALIDATE_EMAIL) || !filter_var($personalEmail, FILTER_VALIDATE_EMAIL)) {
+            $error = 'Validation Error: Please provide valid email addresses for both official and personal emails.';
+        } elseif ($officialEmail === $personalEmail) {
+            $error = 'Validation Error: Official company email and personal recovery email must be different.';
         } elseif (strlen($password) < 8 || strlen($password) > 72) {
-            $error = 'Your password must be at least 8 characters and no more than 72 bytes.';
+            $error = 'Validation Error: Password must be at least 8 characters long.';
         } elseif ($password !== $passwordConfirmation) {
             $error = 'The passwords do not match.';
+        } elseif (!in_array($role, $allowedRoles, true)) {
+            $error = 'Validation Error: Invalid role selected. Allowed roles: head-admin, admin, manager, accounting.';
         } else {
             try {
                 $pdo = databaseConnection();
-                $existingUser = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
-                $existingUser->execute(['email' => $email]);
 
-                if ($existingUser->fetch()) {
-                    $error = 'An account already exists for this email. Please contact your administrator.';
-                } else {
-                    $pendingRequest = $pdo->prepare(
-                        "SELECT id FROM access_requests WHERE email = :email AND status = 'pending' LIMIT 1"
-                    );
-                    $pendingRequest->execute(['email' => $email]);
+                $checkStmt = $pdo->prepare(
+                    'SELECT official_email, personal_email FROM users WHERE official_email = :official OR personal_email = :personal LIMIT 1'
+                );
+                $checkStmt->execute([
+                    ':official' => $officialEmail,
+                    ':personal' => $personalEmail,
+                ]);
+                $existing = $checkStmt->fetch();
 
-                    if ($pendingRequest->fetch()) {
-                        $error = 'A request for this email is already pending review.';
+                if ($existing) {
+                    if ($existing['official_email'] === $officialEmail) {
+                        $error = 'Duplicate Error: This official company email is already registered or has a pending account request.';
                     } else {
-                        $insert = $pdo->prepare(
-                            'INSERT INTO access_requests (name, email, requested_role, reason, password_hash) '
-                            . 'VALUES (:name, :email, :role, :reason, :password_hash)'
-                        );
-                        $insert->execute([
-                            'name' => $name,
-                            'email' => $email,
-                            'role' => $role,
-                            'reason' => $reason === '' ? null : $reason,
-                            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-                        ]);
-                        $_SESSION['access_request_notice'] = 'Your request has been submitted successfully.';
-                        $name = $email = $role = $reason = $password = $passwordConfirmation = '';
-                        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                        header('Location: request-access.php');
-                        exit;
+                        $error = 'Duplicate Error: This personal recovery email is already associated with another account.';
                     }
+                } else {
+                    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+                    $stmt = $pdo->prepare('
+                        INSERT INTO users (fname, mname, lname, official_email, personal_email, password_hash, role, is_active)
+                        VALUES (:fname, :mname, :lname, :official_email, :personal_email, :password_hash, :role, 0)
+                    ');
+                    $stmt->execute([
+                        ':fname'          => $fname,
+                        ':mname'          => $mname !== '' ? $mname : null,
+                        ':lname'          => $lname,
+                        ':official_email' => $officialEmail,
+                        ':personal_email' => $personalEmail,
+                        ':password_hash'  => $passwordHash,
+                        ':role'           => $role,
+                    ]);
+
+                    $_SESSION['access_request_notice'] = 'Account request submitted successfully. Please wait for Head Admin approval before logging in.';
+                    $fname = $mname = $lname = $officialEmail = $personalEmail = $role = $reason = $password = $passwordConfirmation = '';
+                    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+                    header('Location: request-access.php');
+                    exit;
                 }
             } catch (PDOException $exception) {
                 error_log('Fleet management access request database error: ' . $exception->getMessage());
-                $error = 'We could not save your request. Make sure MySQL is running and the fleetwise database is set up. If this is an existing database, run database/migrate-add-request-password.sql in phpMyAdmin.';
+                $error = 'Database Error: Make sure MySQL is running in XAMPP (' . $exception->getMessage() . ').';
             }
         }
     }
@@ -103,6 +124,7 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
     <meta name="theme-color" content="#dbeafe">
     <title>Request access | Paragon Fleet</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/fleet_backend/frontend_api_helper.js" onerror="window.FLEET_HELPER_FALLBACK=true"></script>
     <style>
         :root {
             color-scheme: light;
@@ -149,12 +171,11 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
                 min-height: 100dvh;
             }
         }
-
     </style>
 </head>
 <body class="font-sans text-slate-900 antialiased">
-    <main class="gradient-surface relative z-10 flex min-h-screen items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#eaf4ff] to-[#cfe4ff] px-4 py-20 sm:px-6 sm:py-16 md:py-4">
-        <section class="w-full max-w-[480px] rounded-2xl border border-blue-100 bg-white p-5 shadow-[0_20px_60px_rgba(30,64,175,0.16)] sm:p-6">
+    <main class="gradient-surface relative z-10 flex min-h-screen items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#eaf4ff] to-[#cfe4ff] px-4 py-12 sm:px-6 md:py-6">
+        <section class="w-full max-w-[500px] rounded-2xl border border-blue-100 bg-white p-5 shadow-[0_20px_60px_rgba(30,64,175,0.16)] sm:p-6">
             <a class="mb-3 flex justify-center" href="login.php" aria-label="Paragon Fleet home">
                 <img class="h-auto w-36" src="assets/paragon.webp" alt="Paragon Communications Corp.">
             </a>
@@ -162,7 +183,7 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
                 <p class="mb-1 text-lg font-semibold text-blue-700">Fleet Management and Monitoring System</p>
                 <h2 class="text-xl font-bold tracking-tight text-slate-900">Request an account</h2>
                 <p class="mt-2 text-xs leading-5 text-slate-600">
-                        Tell us about your access needs. An administrator will review your request.
+                    Provide your official company email and a separate personal recovery email. A Head Admin will review your request.
                 </p>
             </div>
 
@@ -181,51 +202,71 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
                     </div>
                     <h3 class="text-sm font-semibold text-emerald-900"><?= $escape($notice) ?></h3>
                     <p class="mt-2 text-xs leading-5 text-emerald-800">
-                        Your request is pending review. You can log in once it has been approved and your account is activated.
+                        Your account is saved in <code>fleet_management_db.users</code> with status <strong>Pending Approval</strong> (<code>is_active = 0</code>).
                     </p>
                     <a class="mt-4 inline-flex w-full justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" href="login.php">
-                            Back to log in
+                        Back to log in
                     </a>
                 </div>
             <?php else: ?>
                 <form id="request-form" class="space-y-3" action="request-access.php" method="post">
                     <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-name">Full name</label>
-                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-name" name="name" type="text" autocomplete="name" placeholder="Your full name" maxlength="120" value="<?= $escape($name) ?>" required>
+
+                    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-fname">First name</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-fname" name="fname" type="text" placeholder="Juan" maxlength="100" value="<?= $escape($fname) ?>" required>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-mname">Middle <span class="font-normal text-slate-400">(opt)</span></label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-mname" name="mname" type="text" placeholder="Santos" maxlength="100" value="<?= $escape($mname) ?>">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-lname">Last name</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-lname" name="lname" type="text" placeholder="Dela Cruz" maxlength="100" value="<?= $escape($lname) ?>" required>
+                        </div>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-email">Email</label>
-                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-email" name="email" type="email" autocomplete="email" placeholder="you@company.com" maxlength="254" value="<?= $escape($email) ?>" required>
+
+                    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-official-email">Official Company Email</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-official-email" name="official_email" type="email" placeholder="you@company.com" maxlength="150" value="<?= $escape($officialEmail) ?>" required>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-personal-email">Personal Recovery Email</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-personal-email" name="personal_email" type="email" placeholder="you.personal@gmail.com" maxlength="150" value="<?= $escape($personalEmail) ?>" required>
+                        </div>
                     </div>
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-password">Create password</label>
-                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="At least 8 characters" required>
+
+                    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-password">Create password</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="At least 8 characters" required>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-password-confirmation">Confirm password</label>
+                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Repeat password" required>
+                        </div>
                     </div>
+
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-password-confirmation">Confirm password</label>
-                        <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Enter your password again" required>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700" for="requested-role">Requested role</label>
+                        <label class="mb-1 block text-xs font-medium text-slate-700" for="requested-role">Requested role</label>
                         <select class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" id="requested-role" name="role" required>
                             <option value="" disabled <?= $role === '' ? 'selected' : '' ?>>Select a role</option>
                             <option value="accounting" <?= $role === 'accounting' ? 'selected' : '' ?>>Accounting</option>
                             <option value="manager" <?= $role === 'manager' ? 'selected' : '' ?>>Manager</option>
                             <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>Admin</option>
-                            <option value="head_admin" <?= $role === 'head_admin' ? 'selected' : '' ?>>Head Admin</option>
+                            <option value="head-admin" <?= ($role === 'head-admin' || $role === 'head_admin') ? 'selected' : '' ?>>Head Admin</option>
                         </select>
                     </div>
+
                     <div>
-                        <label class="mb-1 block text-sm font-medium text-slate-700" for="request-reason">Reason for access <span class="font-normal text-slate-500">(optional)</span></label>
+                        <label class="mb-1 block text-xs font-medium text-slate-700" for="request-reason">Reason for access <span class="font-normal text-slate-500">(optional)</span></label>
                         <textarea class="form-input w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-reason" name="reason" rows="2" maxlength="1000" placeholder="Briefly describe your work requirements"><?= $escape($reason) ?></textarea>
                     </div>
 
                     <p class="text-xs leading-5 text-slate-600">
-                        Your password is stored securely and your account will be created after approval.
-                    </p>
-                    <p class="text-xs leading-5 text-slate-600">
-                        Head Admin access requires approval from an existing Head Admin.
+                        Your official email is used for login and 2FA OTP; your personal email is used for password recovery.
                     </p>
                     <button class="w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
                         Submit request
@@ -234,7 +275,7 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
 
                 <p class="mt-4 border-t border-slate-100 pt-3 text-center">
                     <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="login.php">
-                    Back to log in
+                        Back to log in
                     </a>
                 </p>
             <?php endif; ?>
