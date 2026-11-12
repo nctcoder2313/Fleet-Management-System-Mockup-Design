@@ -121,165 +121,429 @@ $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOT
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#dbeafe">
+    <meta name="theme-color" content="#F8FAFA">
     <title>Request access | Paragon Fleet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/tailwind.css">
+    <link rel="stylesheet" href="assets/top-loader.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/fleet_backend/frontend_api_helper.js" onerror="window.FLEET_HELPER_FALLBACK=true"></script>
+    <script src="assets/top-loader.js"></script>
     <style>
-        :root {
-            color-scheme: light;
-            font-family: ui-sans-serif, system-ui, sans-serif;
-        }
-
-        body {
-            margin: 0;
-            min-width: 320px;
-            min-height: 100vh;
-            background: #dbeafe;
-        }
-
-        .form-input:focus {
-            border-color: #3478f6;
-            box-shadow: 0 0 0 4px rgba(52, 120, 246, .12);
-            outline: none;
-        }
-
-        .gradient-surface {
+        .request-page {
+            background: #F8FAFA;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
             position: relative;
-            isolation: isolate;
+        }
+
+        .login-brand {
+            position: fixed;
+            top: 24px;
+            left: 32px;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+        }
+
+        /* ---------- Clean Corporate Brand Card (Upper Left) ---------- */
+        .brand-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            padding: 9px 22px 9px 15px;
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+            text-decoration: none;
+            transition: all 180ms ease;
+        }
+
+        .brand-card:hover {
+            border-color: #93C5FD;
+            box-shadow: 0 6px 20px -2px rgba(37, 99, 235, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .brand-logo {
+            height: 36px;
+            width: auto;
+            max-width: 150px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .brand-divider {
+            width: 1.5px;
+            height: 26px;
+            background: #CBD5E1;
+            border-radius: 9999px;
+            flex-shrink: 0;
+        }
+
+        .brand-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            line-height: 1.25;
+            letter-spacing: -0.015em;
+            color: #1E3A8A;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .login-footer {
+            position: fixed;
+            left: 36px;
+            bottom: 20px;
+            z-index: 30;
+        }
+
+        /* Center the card with safe top padding so it stays comfortably below the brand header */
+        .stage-container {
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 90px 24px 36px;
+            box-sizing: border-box;
             overflow: hidden;
         }
 
-        .gradient-surface::before {
-            content: "";
+        /* Compact, wide rectangular card */
+        .card-float {
+            position: relative;
+            width: 100%;
+            max-width: 820px;
+            animation: card-float 6s ease-in-out infinite;
+        }
+
+        /* Soft blue halo behind the card */
+        .card-glow {
             position: absolute;
-            inset: -25%;
+            inset: -32px;
             z-index: 0;
-            background: linear-gradient(112deg, transparent 12%, rgba(59, 130, 246, .1) 38%, transparent 62%, rgba(96, 165, 250, .14) 88%, transparent);
-            filter: blur(48px);
+            border-radius: 36px;
+            background:
+                radial-gradient(closest-side at 50% 45%, rgba(37, 99, 235, .38), transparent 75%),
+                radial-gradient(closest-side at 70% 80%, rgba(191, 219, 254, .6), transparent 70%);
+            filter: blur(22px);
+            animation: glow-pulse 4s ease-in-out infinite;
             pointer-events: none;
         }
 
-        .gradient-surface > * {
+        /* Strictly no scrollbars - compact layout fits 100% in viewport */
+        .request-card {
             position: relative;
             z-index: 1;
+            overflow: hidden;
+            border-radius: 20px;
+            padding: 22px 34px;
+            color: #FFFFFF;
+            background: linear-gradient(150deg, #1E3A8A 0%, #1D4ED8 55%, #2563EB 100%);
+            box-shadow:
+                0 0 0 1px rgba(191, 219, 254, .35),
+                0 22px 50px -16px rgba(30, 58, 138, .55),
+                0 0 60px rgba(37, 99, 235, .38);
         }
 
-        @media (min-width: 768px) and (min-height: 640px) {
-            body > main {
+        /* Glowing edge */
+        .request-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1.5px;
+            background: linear-gradient(135deg, rgba(191, 219, 254, .95), rgba(191, 219, 254, 0) 35%, rgba(191, 219, 254, 0) 65%, rgba(191, 219, 254, .8));
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* One-time light sweep */
+        .request-card::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -60%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .18), transparent);
+            transform: skewX(-18deg);
+            pointer-events: none;
+            animation: card-shine 1.4s ease 0.6s 1 both;
+        }
+
+        /* Inputs styled like login card */
+        .card-input {
+            border-radius: 6px;
+            font-size: .75rem;
+            line-height: 1rem;
+            color: #0F172A;
+            background: rgba(255, 255, 255, .97);
+            border: 1px solid rgba(191, 219, 254, .6);
+            transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        .card-input::placeholder {
+            color: #64748B;
+        }
+
+        .card-input:focus {
+            outline: none;
+            border-color: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(191, 219, 254, .55), 0 0 16px rgba(191, 219, 254, .45);
+        }
+
+        .btn-light {
+            border-radius: 6px;
+            background: #FFFFFF;
+            color: #1E3A8A;
+            font-size: .8125rem;
+            font-weight: 600;
+            line-height: 1.125rem;
+            transition: background-color 150ms ease, box-shadow 200ms ease, transform 150ms ease;
+        }
+
+        .btn-light:hover {
+            background: #EFF6FF;
+            box-shadow: 0 0 22px rgba(191, 219, 254, .65);
+        }
+
+        .btn-light:active {
+            transform: translateY(1px);
+        }
+
+        .btn-light:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(191, 219, 254, .7);
+        }
+
+        .card-link {
+            color: #BFDBFE;
+            font-size: .75rem;
+            font-weight: 500;
+        }
+
+        .card-link:hover {
+            color: #FFFFFF;
+            text-decoration: underline;
+        }
+
+        @keyframes card-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% { opacity: .75; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.02); }
+        }
+
+        @keyframes card-shine {
+            from { left: -60%; }
+            to { left: 130%; }
+        }
+
+        @media (max-width: 767px) {
+            .request-page {
+                overflow: auto;
+                height: auto;
                 min-height: 100vh;
-                min-height: 100dvh;
+            }
+
+            .login-brand {
+                position: relative;
+                top: auto;
+                left: auto;
+                padding: 16px 16px 0;
+                justify-content: center;
+            }
+
+            .brand-card {
+                gap: 12px;
+                padding: 7px 16px 7px 12px;
+                max-width: 100%;
+            }
+
+            .brand-logo {
+                height: 28px;
+            }
+
+            .brand-divider {
+                height: 20px;
+            }
+
+            .brand-title {
+                font-size: 0.92rem;
+                white-space: normal;
+                line-height: 1.25;
+            }
+
+            .login-footer {
+                position: relative;
+                left: auto;
+                bottom: auto;
+                padding: 16px 20px 24px;
+                text-align: center;
+            }
+
+            .stage-container {
+                padding: 16px 16px 32px;
+                height: auto;
+                min-height: auto;
+            }
+
+            .request-card {
+                padding: 22px 18px;
             }
         }
     </style>
 </head>
-<body class="font-sans text-slate-900 antialiased">
-    <main class="gradient-surface relative z-10 flex min-h-screen items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#eaf4ff] to-[#cfe4ff] px-4 py-12 sm:px-6 md:py-6">
-        <section class="w-full max-w-[500px] rounded-2xl border border-blue-100 bg-white p-5 shadow-[0_20px_60px_rgba(30,64,175,0.16)] sm:p-6">
-            <a class="mb-3 flex justify-center" href="login.php" aria-label="Paragon Fleet home">
-                <img class="h-auto w-36" src="assets/paragon.webp" alt="Paragon Communications Corp.">
-            </a>
-            <div class="mb-4 text-center">
-                <p class="mb-1 text-lg font-semibold text-blue-700">Fleet Management and Monitoring System</p>
-                <h2 class="text-xl font-bold tracking-tight text-slate-900">Request an account</h2>
-                <p class="mt-2 text-xs leading-5 text-slate-600">
-                    Provide your official company email and a separate personal recovery email. A Head Admin will review your request.
-                </p>
-            </div>
+<body class="request-page font-sans text-body text-app-text antialiased">
+    <!-- Top Loading Bar Micro-Interaction -->
+    <div id="top-loader" class="top-loader" aria-hidden="true">
+        <div class="top-loader-bar" id="top-loader-bar">
+            <div class="top-loader-glow"></div>
+        </div>
+    </div>
+    <div id="top-loader-spinner" class="top-loader-spinner" aria-hidden="true">
+        <div class="top-loader-spinner-circle"></div>
+    </div>
+    <header class="login-brand">
+        <a href="login.php" class="brand-card" aria-label="Paragon Fleet home">
+            <img class="brand-logo" src="assets/paragon.webp" alt="Paragon Communications Corp.">
+            <span class="brand-divider" aria-hidden="true"></span>
+            <span class="brand-title">Fleet Management and Monitoring System</span>
+        </a>
+    </header>
 
-            <?php if ($error !== ''): ?>
-                <p class="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800" role="alert">
-                    <?= $escape($error) ?>
-                </p>
-            <?php endif; ?>
+    <main class="stage-container">
+        <div class="card-float">
+            <div class="card-glow" aria-hidden="true"></div>
 
-            <?php if ($notice !== ''): ?>
-                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-center" role="status">
-                    <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                        <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path d="m5 12.5 4.5 4.5L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </div>
-                    <h3 class="text-sm font-semibold text-emerald-900"><?= $escape($notice) ?></h3>
-                    <p class="mt-2 text-xs leading-5 text-emerald-800">
-                        Your account is saved in <code>fleet_management_db.users</code> with status <strong>Pending Approval</strong> (<code>is_active = 0</code>).
+            <section class="request-card" aria-label="Request access form">
+                <div class="mb-3 border-b border-white/15 pb-2">
+                    <h1 class="text-lg font-bold tracking-tight text-white">Request an Access</h1>
+                    <p class="mt-0.5 text-[11px] text-fleet-border">
+                        Submit your official company credentials. A Head Admin will review and activate your access.
                     </p>
-                    <a class="mt-4 inline-flex w-full justify-center rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" href="login.php">
-                        Back to log in
-                    </a>
                 </div>
-            <?php else: ?>
-                <form id="request-form" class="space-y-3" action="request-access.php" method="post">
-                    <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
 
-                    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-fname">First name</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-fname" name="fname" type="text" placeholder="Juan" maxlength="100" value="<?= $escape($fname) ?>" required>
-                        </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-mname">Middle <span class="font-normal text-slate-400">(opt)</span></label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-mname" name="mname" type="text" placeholder="Santos" maxlength="100" value="<?= $escape($mname) ?>">
-                        </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-lname">Last name</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-lname" name="lname" type="text" placeholder="Dela Cruz" maxlength="100" value="<?= $escape($lname) ?>" required>
-                        </div>
+                <?php if ($error !== ''): ?>
+                    <div class="mb-3 flex gap-2.5 rounded-lg border border-red-300/40 bg-red-500/20 px-3 py-2 text-xs leading-5 text-white backdrop-blur-sm" role="alert">
+                        <svg class="mt-0.5 h-4 w-4 shrink-0 text-red-200" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 7Zm0 7.25a.875.875 0 1 0 0-1.75.875.875 0 0 0 0 1.75Z" clip-rule="evenodd"/>
+                        </svg>
+                        <p><?= $escape($error) ?></p>
                     </div>
+                <?php endif; ?>
 
-                    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-official-email">Official Company Email</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-official-email" name="official_email" type="email" placeholder="you@company.com" maxlength="150" value="<?= $escape($officialEmail) ?>" required>
+                <?php if ($notice !== ''): ?>
+                    <div class="rounded-xl border border-white/25 bg-white/10 p-5 text-center text-white backdrop-blur-sm" role="status">
+                        <div class="mx-auto mb-2.5 flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white ring-1 ring-white/30">
+                            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
                         </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-personal-email">Personal Recovery Email</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-personal-email" name="personal_email" type="email" placeholder="you.personal@gmail.com" maxlength="150" value="<?= $escape($personalEmail) ?>" required>
+                        <h2 class="text-base font-bold text-white"><?= $escape($notice) ?></h2>
+                        <p class="mt-1.5 text-xs text-fleet-border">
+                            Your account is saved with status <span class="status-badge inline-flex items-center rounded-full px-2.5 py-0.5">Pending Approval</span> (<code>is_active = 0</code>).
+                        </p>
+                        <a class="btn-light mt-4 inline-flex justify-center rounded-md px-5 py-2 text-xs font-semibold" href="login.php">
+                            Return to log in
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <form id="request-form" class="space-y-2.5" action="request-access.php" method="post">
+                        <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
+
+                        <!-- Name row (3 columns) -->
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-fname">First name</label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-fname" name="fname" type="text" placeholder="Juan" maxlength="100" value="<?= $escape($fname) ?>" required autofocus>
+                            </div>
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-mname">Middle name <span class="font-normal text-fleet-border">(optional)</span></label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-mname" name="mname" type="text" placeholder="Santos" maxlength="100" value="<?= $escape($mname) ?>">
+                            </div>
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-lname">Last name</label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-lname" name="lname" type="text" placeholder="Dela Cruz" maxlength="100" value="<?= $escape($lname) ?>" required>
+                            </div>
                         </div>
-                    </div>
 
-                    <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-password">Create password</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="At least 8 characters" required>
+                        <!-- Email row (2 equal columns) -->
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-official-email">Official Company Email</label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-official-email" name="official_email" type="email" placeholder="you@company.com" maxlength="150" value="<?= $escape($officialEmail) ?>" required>
+                            </div>
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-personal-email">Personal Recovery Email</label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-personal-email" name="personal_email" type="email" placeholder="you.personal@gmail.com" maxlength="150" value="<?= $escape($personalEmail) ?>" required>
+                            </div>
                         </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-medium text-slate-700" for="request-password-confirmation">Confirm password</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Repeat password" required>
+
+                        <!-- Password row (2 equal columns) -->
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-password">Create password</label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="At least 8 characters" required>
+                            </div>
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-password-confirmation">Confirm password</label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-password-confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="72" placeholder="Repeat password" required>
+                            </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <label class="mb-1 block text-xs font-medium text-slate-700" for="requested-role">Requested role</label>
-                        <select class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900" id="requested-role" name="role" required>
-                            <option value="" disabled <?= $role === '' ? 'selected' : '' ?>>Select a role</option>
-                            <option value="accounting" <?= $role === 'accounting' ? 'selected' : '' ?>>Accounting</option>
-                            <option value="manager" <?= $role === 'manager' ? 'selected' : '' ?>>Manager</option>
-                            <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>Admin</option>
-                            <option value="head-admin" <?= ($role === 'head-admin' || $role === 'head_admin') ? 'selected' : '' ?>>Head Admin</option>
-                        </select>
-                    </div>
+                        <!-- Role & Reason row (2 columns) -->
+                        <div class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="requested-role">Requested role</label>
+                                <select class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="requested-role" name="role" required>
+                                    <option value="" disabled <?= $role === '' ? 'selected' : '' ?>>Select a role</option>
+                                    <option value="accounting" <?= $role === 'accounting' ? 'selected' : '' ?>>Accounting</option>
+                                    <option value="manager" <?= $role === 'manager' ? 'selected' : '' ?>>Manager</option>
+                                    <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>Admin</option>
+                                    <option value="head-admin" <?= ($role === 'head-admin' || $role === 'head_admin') ? 'selected' : '' ?>>Head Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="mb-0.5 block text-[11px] font-medium text-white" for="request-reason">Reason for access <span class="font-normal text-fleet-border">(optional)</span></label>
+                                <input class="card-input w-full rounded-md px-2.5 py-1.5 text-xs" id="request-reason" name="reason" type="text" maxlength="1000" placeholder="Briefly describe your work requirements" value="<?= $escape($reason) ?>">
+                            </div>
+                        </div>
 
-                    <div>
-                        <label class="mb-1 block text-xs font-medium text-slate-700" for="request-reason">Reason for access <span class="font-normal text-slate-500">(optional)</span></label>
-                        <textarea class="form-input w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400" id="request-reason" name="reason" rows="2" maxlength="1000" placeholder="Briefly describe your work requirements"><?= $escape($reason) ?></textarea>
-                    </div>
+                        <p class="text-[10px] leading-tight text-fleet-border pt-0.5">
+                            Official email is used for login and 2FA OTP verification; personal email is used for account password recovery.
+                        </p>
 
-                    <p class="text-xs leading-5 text-slate-600">
-                        Your official email is used for login and 2FA OTP; your personal email is used for password recovery.
+                        <div class="pt-1">
+                            <button class="btn-light w-full rounded-md py-2 px-3 text-xs font-semibold" type="submit">
+                                Submit Account Request
+                            </button>
+                        </div>
+                    </form>
+
+                    <p class="mt-2.5 border-t border-white/15 pt-2 text-center">
+                        <a class="card-link text-xs" href="login.php">
+                            Already have an account? Back to log in
+                        </a>
                     </p>
-                    <button class="w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
-                        Submit request
-                    </button>
-                </form>
-
-                <p class="mt-4 border-t border-slate-100 pt-3 text-center">
-                    <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="login.php">
-                        Back to log in
-                    </a>
-                </p>
-            <?php endif; ?>
-        </section>
+                <?php endif; ?>
+            </section>
+        </div>
     </main>
+
+    <footer class="login-footer text-xs text-slate-600">
+        © <?= date('Y') ?> Paragon Communications Corp. <span class="mx-1.5 text-slate-400">·</span> Fleet operations, made clearer.
+    </footer>
 </body>
 </html>

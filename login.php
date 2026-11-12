@@ -313,372 +313,802 @@ $displayRole = $signedIn
     ? ($roleLabels[$_SESSION['user_role']] ?? 'Team member')
     : '';
 $escape = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+// Play the 2-second car intro and choreography whenever visiting the login view.
+// Only skip intro if user is already signed in or during multi-step forms (OTP/forgot-password)
+$skipIntro = $signedIn
+    || ($_SERVER['REQUEST_METHOD'] === 'POST' && $error !== '')
+    || in_array($step, ['otp', 'forgot_request', 'forgot_reset'], true);
 ?>
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#dbeafe">
+    <meta name="theme-color" content="#F8FAFA">
     <title>Log in | Paragon Fleet</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" href="assets/video/white%20fleet-car.mp4" as="video" type="video/mp4">
+    <link rel="preload" href="assets/video/white-fleet-car-poster.png" as="image" type="image/png">
+    <link rel="stylesheet" href="assets/css/tailwind.css">
+    <link rel="stylesheet" href="assets/top-loader.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/fleet_backend/frontend_api_helper.js" onerror="window.FLEET_HELPER_FALLBACK=true"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        fleet: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            500: '#3478f6',
-                            600: '#2463eb',
-                            700: '#1d4ed8',
-                            900: '#172554'
-                        }
-                    },
-                }
-            }
-        };
-    </script>
+    <script src="assets/top-loader.js"></script>
     <style>
-        :root {
-            color-scheme: light;
-            font-family: ui-sans-serif, system-ui, sans-serif;
-        }
-
-        body {
-            margin: 0;
-            min-width: 320px;
+        /* ---------- Page shell: Matched exactly to the video background tone (#F8FAFA) ---------- */
+        .login-page {
+            background: #F8FAFA;
             min-height: 100vh;
-            background: #f8fafc;
-        }
-
-        .hero-panel {
-            background: #fff;
-        }
-
-        .form-input:focus {
-            border-color: #3478f6;
-            box-shadow: 0 0 0 4px rgba(52, 120, 246, .12);
-            outline: none;
-        }
-
-        .gradient-surface {
+            min-height: 100dvh;
+            overflow: hidden;
             position: relative;
-            isolation: isolate;
+        }
+
+        .login-brand {
+            position: fixed;
+            top: 24px;
+            left: 32px;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+        }
+
+        /* ---------- Clean Corporate Brand Card (Upper Left) ---------- */
+        .brand-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 16px;
+            padding: 9px 22px 9px 15px;
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+            text-decoration: none;
+            transition: all 180ms ease;
+        }
+
+        .brand-card:hover {
+            border-color: #93C5FD;
+            box-shadow: 0 6px 20px -2px rgba(37, 99, 235, 0.12);
+            transform: translateY(-1px);
+        }
+
+        .brand-logo {
+            height: 36px;
+            width: auto;
+            max-width: 150px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .brand-divider {
+            width: 1.5px;
+            height: 26px;
+            background: #CBD5E1;
+            border-radius: 9999px;
+            flex-shrink: 0;
+        }
+
+        .brand-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            line-height: 1.25;
+            letter-spacing: -0.015em;
+            color: #1E3A8A;
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        .login-footer {
+            position: fixed;
+            left: 40px;
+            bottom: 24px;
+            z-index: 30;
+        }
+
+        .login-stage {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            height: 100dvh;
             overflow: hidden;
         }
 
-        .gradient-surface::before {
-            content: "";
+        /* ---------- Video stage: starts centered at 0:00, then slowly glides to the left reaching final position at 0:03 ---------- */
+        .video-wrap {
             position: absolute;
-            inset: -25%;
-            z-index: 0;
-            background: linear-gradient(112deg, transparent 12%, rgba(59, 130, 246, .1) 38%, transparent 62%, rgba(96, 165, 250, .14) 88%, transparent);
-            filter: blur(48px);
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             pointer-events: none;
+            z-index: 10;
+            animation: fleet-car-glide 3.0s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
         }
 
-        .gradient-surface > * {
+        @keyframes fleet-car-glide {
+            0% {
+                transform: translate3d(0, 0, 0);
+            }
+            15% {
+                transform: translate3d(0, 0, 0);
+            }
+            100% {
+                transform: translate3d(-15vw, 0, 0);
+            }
+        }
+
+        .video-stage {
             position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Video element & poster: feathered mask eliminates any rectangular bounding box */
+        .video-media {
+            width: min(1080px, 90vw);
+            max-height: 72vh;
+            object-fit: contain;
+            background: transparent !important;
+            -webkit-mask-image: radial-gradient(ellipse 90% 86% at 50% 50%, #000 60%, transparent 100%);
+            mask-image: radial-gradient(ellipse 90% 86% at 50% 50%, #000 60%, transparent 100%);
+        }
+
+        /* Poster image: painted underneath at 0:00 as instant fallback */
+        .video-poster-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
             z-index: 1;
         }
 
-        @media (max-width: 767px) {
-            .hero-panel {
-                min-height: 470px;
+        /* Video element: always 100% visible, sits on top of poster */
+        .video-wrap video {
+            position: relative;
+            z-index: 2;
+            opacity: 1 !important;
+            display: block;
+        }
+
+        /* ---------- Floating blue card: WALA PA at 0:00, emerges from the right to be in place at 0:03 ---------- */
+        .card-wrap {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: 48%;
+            max-width: 620px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 68px 48px 48px 16px;
+            z-index: 20;
+            animation: login-card-enter 3.0s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both;
+        }
+
+        @keyframes login-card-enter {
+            0% {
+                opacity: 0;
+                visibility: hidden;
+                transform: translate3d(140px, 0, 0);
+                pointer-events: none;
+            }
+            20% {
+                opacity: 0;
+                visibility: hidden;
+                transform: translate3d(140px, 0, 0);
+                pointer-events: none;
+            }
+            100% {
+                opacity: 1;
+                visibility: visible;
+                transform: translate3d(0, 0, 0);
+                pointer-events: auto;
             }
         }
 
-        @media (min-width: 768px) and (min-height: 540px) {
-            body {
-                height: 100vh;
-                height: 100dvh;
-                overflow: hidden;
+        .card-float {
+            position: relative;
+            width: 100%;
+            max-width: 490px;
+            max-height: 100%;
+            animation: card-float 6s ease-in-out infinite;
+        }
+
+        /* Soft blue halo behind the card */
+        .card-glow {
+            position: absolute;
+            inset: -48px;
+            z-index: 0;
+            border-radius: 48px;
+            background:
+                radial-gradient(closest-side at 50% 45%, rgba(37, 99, 235, .45), transparent 75%),
+                radial-gradient(closest-side at 70% 80%, rgba(191, 219, 254, .7), transparent 70%);
+            filter: blur(28px);
+            animation: glow-pulse 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        .login-card {
+            position: relative;
+            z-index: 1;
+            overflow: hidden auto;
+            max-height: calc(100dvh - 140px);
+            border-radius: 24px;
+            padding: 38px 40px;
+            color: #FFFFFF;
+            background: linear-gradient(150deg, #1E3A8A 0%, #1D4ED8 55%, #2563EB 100%);
+            box-shadow:
+                0 0 0 1px rgba(191, 219, 254, .35),
+                0 28px 60px -16px rgba(30, 58, 138, .6),
+                0 0 70px rgba(37, 99, 235, .45);
+        }
+
+        /* Glowing edge */
+        .login-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1.5px;
+            background: linear-gradient(135deg, rgba(191, 219, 254, .95), rgba(191, 219, 254, 0) 35%, rgba(191, 219, 254, 0) 65%, rgba(191, 219, 254, .8));
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+
+        /* One-time light sweep when the card arrives */
+        .login-card::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -60%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .18), transparent);
+            transform: skewX(-18deg);
+            pointer-events: none;
+            animation: card-shine 1.4s ease 3.0s 1 both;
+        }
+
+        /* ---------- Controls on the blue card ---------- */
+        .card-input {
+            border-radius: 8px;
+            font-size: .875rem;
+            line-height: 1.25rem;
+            color: #0F172A;
+            background: rgba(255, 255, 255, .97);
+            border: 1px solid rgba(191, 219, 254, .6);
+            transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        .card-input::placeholder {
+            color: #64748B;
+        }
+
+        .card-input:focus {
+            outline: none;
+            border-color: #FFFFFF;
+            box-shadow: 0 0 0 3px rgba(191, 219, 254, .55), 0 0 18px rgba(191, 219, 254, .45);
+        }
+
+        .btn-light {
+            border-radius: 8px;
+            background: #FFFFFF;
+            color: #1E3A8A;
+            font-size: .875rem;
+            font-weight: 600;
+            line-height: 1.25rem;
+            transition: background-color 150ms ease, box-shadow 200ms ease, transform 150ms ease;
+        }
+
+        .btn-light:hover {
+            background: #EFF6FF;
+            box-shadow: 0 0 24px rgba(191, 219, 254, .65);
+        }
+
+        .btn-light:active {
+            transform: translateY(1px);
+        }
+
+        .btn-light:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(191, 219, 254, .7);
+        }
+
+        .card-link {
+            color: #BFDBFE;
+            font-size: .75rem;
+            font-weight: 500;
+        }
+
+        .card-link:hover {
+            color: #FFFFFF;
+            text-decoration: underline;
+        }
+
+        /* ---------- Keyframes ---------- */
+        @keyframes card-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% { opacity: .75; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.04); }
+        }
+
+        @keyframes card-shine {
+            from { left: -60%; }
+            to { left: 130%; }
+        }
+
+        /* Skip the intro (form posts, errors, OTP, forgot password, reduced motion) */
+        .no-anim .video-wrap {
+            animation: none !important;
+            transform: translate3d(-15vw, 0, 0) !important;
+        }
+
+        .no-anim .card-wrap {
+            animation: none !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translate3d(0, 0, 0) !important;
+            pointer-events: auto !important;
+        }
+
+        .no-anim .login-card::after {
+            animation: none !important;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .card-float,
+            .card-glow,
+            .login-card::after {
+                animation: none !important;
+            }
+        }
+
+        /* ---------- Mobile: video on top, card below ---------- */
+        @media (max-width: 767px) {
+            .login-page {
+                overflow: auto;
             }
 
-            body > main {
-                position: fixed;
-                inset: 0;
-                height: 100vh;
-                height: 100dvh;
-                min-height: 0;
+            .login-brand {
+                position: relative;
+                top: auto;
+                left: auto;
+                padding: 18px 16px 0;
+                justify-content: center;
             }
 
-            body > main > section {
-                height: 100%;
-                min-height: 0;
+            .brand-card {
+                gap: 12px;
+                padding: 7px 16px 7px 12px;
+                max-width: 100%;
             }
 
-            body > main > .hero-panel,
-            body > main > .gradient-surface {
-                overflow-x: hidden;
-                overflow-y: auto;
+            .brand-logo {
+                height: 28px;
             }
 
-            body > main > .gradient-surface::before {
-                inset: 0;
+            .brand-divider {
+                height: 20px;
             }
 
-            .hero-panel .hero-vehicle {
-                max-height: clamp(120px, calc(100dvh - 420px), 280px);
+            .brand-title {
+                font-size: 0.92rem;
+                white-space: normal;
+                line-height: 1.25;
+            }
+
+            .login-footer {
+                position: relative;
+                left: auto;
+                bottom: auto;
+                padding: 0 20px 24px;
+                text-align: center;
+            }
+
+            .login-stage {
+                height: auto;
+                min-height: calc(100vh - 120px);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .video-wrap {
+                position: relative;
+                inset: auto;
+                width: 100%;
+                height: 40vh;
+                animation: none !important;
+                transform: none !important;
+            }
+
+            .video-media {
+                width: 100%;
+                max-height: 100%;
+            }
+
+            .card-wrap {
+                position: relative;
+                inset: auto;
+                width: 100%;
+                max-width: 460px;
+                padding: 0 20px 40px;
+                animation: login-card-mobile 2.2s ease 0.1s both;
+            }
+
+            .no-anim .card-wrap {
+                animation: none !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+                transform: none !important;
+            }
+
+            .login-card {
+                max-height: none;
+                padding: 28px 24px;
+            }
+        }
+
+        @keyframes login-card-mobile {
+            0%, 20% {
+                opacity: 0;
+                visibility: hidden;
+                transform: translate3d(0, 40px, 0);
+            }
+            100% {
+                opacity: 1;
+                visibility: visible;
+                transform: translate3d(0, 0, 0);
             }
         }
     </style>
 </head>
-<body class="font-sans text-slate-900 antialiased">
-    <main class="min-h-screen bg-slate-50 md:grid md:grid-cols-[1.08fr_.92fr]">
-        <section class="hero-panel relative flex min-h-[470px] flex-col overflow-hidden px-6 py-6 text-blue-900 sm:px-8 md:min-h-screen md:border-r md:border-slate-100 md:px-10 md:py-8 lg:px-14">
-            <a class="relative z-10 flex w-fit flex-col items-start text-blue-800" href="login.php" aria-label="Paragon Fleet home">
-                <img class="h-auto w-48 sm:w-56" src="assets/paragon.webp" alt="Paragon Communications Corp.">
-            </a>
+<body class="login-page font-sans text-body text-app-text antialiased<?= $skipIntro ? ' is-ready no-anim' : '' ?>">
+    <!-- Top Loading Bar Micro-Interaction -->
+    <div id="top-loader" class="top-loader" aria-hidden="true">
+        <div class="top-loader-bar" id="top-loader-bar">
+            <div class="top-loader-glow"></div>
+        </div>
+    </div>
+    <div id="top-loader-spinner" class="top-loader-spinner" aria-hidden="true">
+        <div class="top-loader-spinner-circle"></div>
+    </div>
+    <header class="login-brand">
+        <a href="login.php" class="brand-card" aria-label="Paragon Fleet home">
+            <img class="brand-logo" src="assets/paragon.webp" alt="Paragon Communications Corp.">
+            <span class="brand-divider" aria-hidden="true"></span>
+            <span class="brand-title">Fleet Management and Monitoring System</span>
+        </a>
+    </header>
 
-            <div class="relative z-10 mt-6 max-w-lg sm:mt-8">
-                <h1 class="max-w-md text-2xl font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl">
-                    Your fleet,<br>always connected.
-                </h1>
-                <p class="mt-3 max-w-sm text-sm leading-6 text-slate-600">
-                    Keep your vehicles, people, and operations moving together — all from one place.
-                </p>
+    <main class="login-stage">
+        <div class="video-wrap" id="video-wrap">
+            <div class="video-stage">
+                <!-- Static poster image with pure white background; painted immediately at 0:00 so user never sees black box -->
+                <img id="video-poster"
+                     class="video-media video-poster-img"
+                     src="assets/video/white-fleet-car-poster.png"
+                     alt="Paragon Fleet Vehicle"
+                     aria-hidden="true">
+
+                <!-- New video with pure white background ("white fleet-car.mp4") -->
+                <video id="fleet-video"
+                       class="video-media"
+                       autoplay
+                       muted
+                       loop
+                       playsinline
+                       preload="auto"
+                       poster="assets/video/white-fleet-car-poster.png"
+                       aria-hidden="true">
+                    <source src="assets/video/white%20fleet-car.mp4" type="video/mp4">
+                    <source src="assets/video/white fleet-car.mp4" type="video/mp4">
+                </video>
             </div>
+        </div>
 
-            <div class="flex flex-1 items-center justify-center py-5">
-                <img class="hero-vehicle max-h-[220px] w-full object-contain sm:max-h-[280px] md:max-h-[40vh] lg:max-h-[48vh]" src="assets/fleet%20pcc%20image.jpg" alt="Paragon fleet service vehicle">
-            </div>
-
-            <div class="relative z-10 mt-auto hidden pt-6 text-xs text-slate-600 md:block">
-                <span>© <?= date('Y') ?> Paragon Communications Corp.</span>
-                <span class="mx-2 text-blue-300">·</span>
-                <span>Fleet operations, made clearer.</span>
-            </div>
-        </section>
-
-        <section class="gradient-surface flex min-h-[calc(100vh-470px)] items-center justify-center bg-gradient-to-br from-[#dbeafe] via-[#eaf4ff] to-[#cfe4ff] px-6 py-8 sm:px-10 md:min-h-screen md:px-10 md:py-6 lg:px-14">
-            <div class="w-full max-w-[460px] rounded-2xl border border-slate-200 bg-white p-7 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-9">
-                <div class="mb-6">
-                    <p class="mb-1 text-lg font-semibold text-blue-700">Fleet Management and Monitoring System</p>
-                    <h2 class="text-base font-bold tracking-tight text-slate-900">
-                        <?php if ($signedIn): ?>
-                            You’re signed in
-                        <?php elseif ($step === 'otp'): ?>
-                            Two-Factor Authentication (2FA)
-                        <?php elseif ($step === 'forgot_request' || $step === 'forgot_reset'): ?>
-                            Account Password Recovery
-                        <?php else: ?>
-                            Log in to your account
-                        <?php endif; ?>
-                    </h2>
-                    <p class="mt-1 text-xs leading-5 text-slate-500">
-                        <?php if ($signedIn): ?>
-                            Connected to <code>fleet_management_db</code> backend.
-                        <?php elseif ($step === 'otp'): ?>
-                            Enter the 6-digit OTP code generated for <strong><?= $escape($pendingEmail) ?></strong>.
-                        <?php elseif ($step === 'forgot_request'): ?>
-                            Enter your registered personal recovery email to receive a 6-digit reset code.
-                        <?php elseif ($step === 'forgot_reset'): ?>
-                            Enter the 6-digit recovery code sent to <strong><?= $escape($recoveryEmail) ?></strong> and your new password.
-                        <?php else: ?>
-                            Enter your official company email and password to continue.
-                        <?php endif; ?>
-                    </p>
-                </div>
-
-                <?php if ($error !== ''): ?>
-                    <div class="mb-5 flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
-                        <svg class="mt-0.5 h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 7Zm0 7.25a.875.875 0 1 0 0-1.75.875.875 0 0 0 0 1.75Z" clip-rule="evenodd"/>
-                        </svg>
-                        <p><?= $escape($error) ?></p>
+        <section class="card-wrap" id="card-wrap" aria-label="Sign in">
+            <div class="card-float">
+                <div class="card-glow" aria-hidden="true"></div>
+                <div class="login-card">
+                    <div class="mb-6">
+                        <h1 class="text-page-title tracking-tight text-white">
+                            <?php if ($signedIn): ?>
+                                You’re signed in
+                            <?php elseif ($step === 'otp'): ?>
+                                Two-Factor Authentication
+                            <?php elseif ($step === 'forgot_request' || $step === 'forgot_reset'): ?>
+                                Password Recovery
+                            <?php else: ?>
+                                Welcome back
+                            <?php endif; ?>
+                        </h1>
+                        <p class="mt-1 text-body text-fleet-border">
+                            <?php if ($signedIn): ?>
+                                Connected to the <code>fleet_management_db</code> backend.
+                            <?php elseif ($step === 'otp'): ?>
+                                Enter the 6-digit OTP code generated for <strong class="text-white"><?= $escape($pendingEmail) ?></strong>.
+                            <?php elseif ($step === 'forgot_request'): ?>
+                                Enter your registered personal recovery email to receive a 6-digit reset code.
+                            <?php elseif ($step === 'forgot_reset'): ?>
+                                Enter the code sent to <strong class="text-white"><?= $escape($recoveryEmail) ?></strong> and your new password.
+                            <?php else: ?>
+                                Log in with your official company email and password.
+                            <?php endif; ?>
+                        </p>
                     </div>
-                <?php endif; ?>
 
-                <?php if ($notice !== ''): ?>
-                    <div class="mb-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-900" role="status">
-                        <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd"/>
-                        </svg>
-                        <p><?= $escape($notice) ?></p>
-                    </div>
-                <?php endif; ?>
+                    <?php if ($error !== ''): ?>
+                        <div class="mb-5 flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-body text-red-800" role="alert">
+                            <svg class="mt-0.5 h-5 w-5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm0-11a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 7Zm0 7.25a.875.875 0 1 0 0-1.75.875.875 0 0 0 0 1.75Z" clip-rule="evenodd"/>
+                            </svg>
+                            <p><?= $escape($error) ?></p>
+                        </div>
+                    <?php endif; ?>
 
-                <?php if ($signedIn): ?>
-                    <div class="rounded-2xl border border-blue-100 bg-white p-5 shadow-[0_12px_40px_rgba(30,64,175,0.07)]">
+                    <?php if ($notice !== ''): ?>
+                        <div class="mb-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-900" role="status">
+                            <svg class="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clip-rule="evenodd"/>
+                            </svg>
+                            <p><?= $escape($notice) ?></p>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($signedIn): ?>
                         <div class="mb-4 flex items-center gap-3">
-                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/30">
                                 <svg viewBox="0 0 24 24" fill="none" class="h-6 w-6" aria-hidden="true">
                                     <path d="m6 12.5 4 4 8-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                                 </svg>
                             </div>
                             <div>
-                                <p class="text-sm font-semibold text-slate-900">
-                                    Welcome, <?= $escape($displayName) ?>!
-                                </p>
-                                <p class="text-xs text-slate-600">
-                                    Role: <span class="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700"><?= $escape($displayRole) ?></span>
+                                <p class="text-body font-semibold text-white">Welcome, <?= $escape($displayName) ?>!</p>
+                                <p class="mt-1 text-xs text-fleet-border">
+                                    Role: <span class="status-badge inline-flex items-center rounded-full px-2.5 py-0.5"><?= $escape($displayRole) ?></span>
                                 </p>
                             </div>
                         </div>
 
-                        <div class="rounded-xl bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
-                            <div><span class="font-medium text-slate-700">Official Email:</span> <?= $escape((string) ($_SESSION['official_email'] ?? '')) ?></div>
-                            <div><span class="font-medium text-slate-700">Personal Email:</span> <?= $escape((string) ($_SESSION['personal_email'] ?? '')) ?></div>
+                        <div class="space-y-1 rounded-xl border border-white/20 bg-white/10 p-3 text-xs text-fleet-border">
+                            <div><span class="font-semibold text-white">Official Email:</span> <?= $escape((string) ($_SESSION['official_email'] ?? '')) ?></div>
+                            <div><span class="font-semibold text-white">Personal Email:</span> <?= $escape((string) ($_SESSION['personal_email'] ?? '')) ?></div>
                         </div>
 
-                        <details class="mt-4 rounded-xl border border-slate-200 p-3">
-                            <summary class="cursor-pointer text-xs font-semibold text-blue-700 hover:text-blue-800">
-                                Update Profile (Connected to auth_profile.php)
+                        <details class="mt-4 rounded-xl border border-white/20 bg-white/5 p-3">
+                            <summary class="cursor-pointer text-xs font-semibold text-white hover:text-fleet-border">
+                                Update profile
                             </summary>
                             <form class="mt-3 space-y-2.5" method="post" action="login.php">
                                 <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
                                 <input type="hidden" name="form_action" value="update_profile">
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="mb-1 block text-xs font-medium text-slate-700" for="prof-fname">First name</label>
-                                        <input class="form-input w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs" id="prof-fname" name="fname" type="text" value="<?= $escape((string) ($_SESSION['fname'] ?? '')) ?>" required>
+                                        <label class="mb-1 block text-xs font-medium text-white" for="prof-fname">First name</label>
+                                        <input class="card-input w-full rounded-lg px-2.5 py-1.5" id="prof-fname" name="fname" type="text" value="<?= $escape((string) ($_SESSION['fname'] ?? '')) ?>" required>
                                     </div>
                                     <div>
-                                        <label class="mb-1 block text-xs font-medium text-slate-700" for="prof-mname">Middle name</label>
-                                        <input class="form-input w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs" id="prof-mname" name="mname" type="text" value="<?= $escape((string) ($_SESSION['mname'] ?? '')) ?>">
+                                        <label class="mb-1 block text-xs font-medium text-white" for="prof-mname">Middle name</label>
+                                        <input class="card-input w-full rounded-lg px-2.5 py-1.5" id="prof-mname" name="mname" type="text" value="<?= $escape((string) ($_SESSION['mname'] ?? '')) ?>">
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="mb-1 block text-xs font-medium text-slate-700" for="prof-lname">Last name</label>
-                                    <input class="form-input w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs" id="prof-lname" name="lname" type="text" value="<?= $escape((string) ($_SESSION['lname'] ?? '')) ?>" required>
+                                    <label class="mb-1 block text-xs font-medium text-white" for="prof-lname">Last name</label>
+                                    <input class="card-input w-full rounded-lg px-2.5 py-1.5" id="prof-lname" name="lname" type="text" value="<?= $escape((string) ($_SESSION['lname'] ?? '')) ?>" required>
                                 </div>
                                 <div>
-                                    <label class="mb-1 block text-xs font-medium text-slate-700" for="prof-pemail">Personal recovery email</label>
-                                    <input class="form-input w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs" id="prof-pemail" name="personal_email" type="email" value="<?= $escape((string) ($_SESSION['personal_email'] ?? '')) ?>" required>
+                                    <label class="mb-1 block text-xs font-medium text-white" for="prof-pemail">Personal recovery email</label>
+                                    <input class="card-input w-full rounded-lg px-2.5 py-1.5" id="prof-pemail" name="personal_email" type="email" value="<?= $escape((string) ($_SESSION['personal_email'] ?? '')) ?>" required>
                                 </div>
-                                <button class="w-full rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-900" type="submit">
-                                    Save profile changes
-                                </button>
+                                <button class="btn-light w-full rounded-lg px-3 py-2 text-xs" type="submit">Save profile changes</button>
                             </form>
                         </details>
 
                         <form class="mt-5" method="post" action="login.php">
                             <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
-                            <button class="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit" name="logout" value="1">
-                                Sign out
-                            </button>
+                            <button class="btn-light w-full rounded-lg px-4 py-3" type="submit" name="logout" value="1">Sign out</button>
                         </form>
-                    </div>
 
-                <?php elseif ($step === 'otp'): ?>
-                    <?php if ($otpPreview !== ''): ?>
-                        <div class="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-                            <div class="flex items-center justify-between">
-                                <span class="font-semibold">2FA OTP Preview (Testing Mode):</span>
-                                <button type="button" onclick="document.getElementById('otp_code').value='<?= $escape($otpPreview) ?>'" class="rounded bg-blue-700 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-blue-800">
-                                    Auto-fill OTP
-                                </button>
+                    <?php elseif ($step === 'otp'): ?>
+                        <?php if ($otpPreview !== ''): ?>
+                            <div class="mb-4 rounded-xl border border-white/25 bg-white/10 p-3 text-xs text-white">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="font-semibold">OTP preview (testing mode)</span>
+                                    <button type="button" onclick="document.getElementById('otp_code').value='<?= $escape($otpPreview) ?>'" class="btn-light rounded px-2 py-0.5 text-[11px]">Auto-fill OTP</button>
+                                </div>
+                                <p class="mt-1 font-mono text-base font-bold tracking-widest text-white"><?= $escape($otpPreview) ?></p>
                             </div>
-                            <p class="mt-1 font-mono text-base font-bold tracking-widest text-blue-700"><?= $escape($otpPreview) ?></p>
-                        </div>
+                        <?php endif; ?>
+
+                        <form method="post" action="login.php" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="form_action" value="verify_otp">
+                            <input type="hidden" name="official_email" value="<?= $escape($pendingEmail) ?>">
+                            <div>
+                                <label class="mb-1.5 block text-body font-medium text-white" for="otp_code">6-digit OTP code</label>
+                                <input class="card-input w-full rounded-lg px-3 py-2.5 text-center font-mono text-lg tracking-widest" id="otp_code" name="otp_code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required autofocus>
+                            </div>
+                            <div class="space-y-2 pt-1">
+                                <button class="btn-light w-full rounded-lg px-4 py-3" type="submit">Verify OTP &amp; sign in</button>
+                                <a href="login.php?view=login" class="card-link block w-full py-1 text-center">Cancel and return to log in</a>
+                            </div>
+                        </form>
+
+                    <?php elseif ($step === 'forgot_request'): ?>
+                        <form method="post" action="login.php" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="form_action" value="forgot_request_code">
+                            <div>
+                                <label class="mb-1.5 block text-body font-medium text-white" for="personal_email">Personal recovery email</label>
+                                <input class="card-input w-full rounded-lg px-3 py-2.5" id="personal_email" name="personal_email" type="email" placeholder="your.personal@gmail.com" required autofocus>
+                            </div>
+                            <div class="space-y-2 pt-1">
+                                <button class="btn-light w-full rounded-lg px-4 py-3" type="submit">Send 6-digit recovery code</button>
+                                <a href="login.php?view=login" class="card-link block w-full py-1 text-center">Back to log in</a>
+                            </div>
+                        </form>
+
+                    <?php elseif ($step === 'forgot_reset'): ?>
+                        <?php if ($recoveryPreview !== ''): ?>
+                            <div class="mb-4 rounded-xl border border-white/25 bg-white/10 p-3 text-xs text-white">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="font-semibold">Recovery code preview (testing mode)</span>
+                                    <button type="button" onclick="document.getElementById('recovery_code').value='<?= $escape($recoveryPreview) ?>'" class="btn-light rounded px-2 py-0.5 text-[11px]">Auto-fill code</button>
+                                </div>
+                                <p class="mt-1 font-mono text-base font-bold tracking-widest text-white"><?= $escape($recoveryPreview) ?></p>
+                            </div>
+                        <?php endif; ?>
+
+                        <form method="post" action="login.php" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="form_action" value="forgot_reset_password">
+                            <input type="hidden" name="personal_email" value="<?= $escape($recoveryEmail) ?>">
+                            <div>
+                                <label class="mb-1.5 block text-body font-medium text-white" for="recovery_code">6-digit recovery code</label>
+                                <input class="card-input w-full rounded-lg px-3 py-2 text-center font-mono text-base tracking-widest" id="recovery_code" name="recovery_code" type="text" maxlength="6" placeholder="000000" required>
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-body font-medium text-white" for="new_password">New password</label>
+                                <input class="card-input w-full rounded-lg px-3 py-2.5" id="new_password" name="new_password" type="password" minlength="8" placeholder="At least 8 characters" required>
+                            </div>
+                            <div class="space-y-2 pt-1">
+                                <button class="btn-light w-full rounded-lg px-4 py-3" type="submit">Reset password</button>
+                                <a href="login.php?view=login" class="card-link block w-full py-1 text-center">Back to log in</a>
+                            </div>
+                        </form>
+
+                    <?php else: ?>
+                        <form method="post" action="login.php" class="space-y-4">
+                            <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
+                            <input type="hidden" name="form_action" value="login">
+                            <div>
+                                <label class="mb-1.5 block text-body font-medium text-white" for="email">Official company email</label>
+                                <input class="card-input w-full rounded-lg px-3 py-2.5" id="email" name="email" type="email" autocomplete="username" placeholder="you@company.com" required>
+                            </div>
+                            <div>
+                                <label class="mb-1.5 block text-body font-medium text-white" for="password">Password</label>
+                                <input class="card-input w-full rounded-lg px-3 py-2.5" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+                                <div class="mt-2 text-right">
+                                    <a href="login.php?view=forgot" class="card-link">Forgot password?</a>
+                                </div>
+                            </div>
+                            <div class="pt-2">
+                                <button class="btn-light w-full rounded-lg px-4 py-3" type="submit">Log in</button>
+                            </div>
+                        </form>
+                        <p class="mt-5 border-t border-white/20 pt-4 text-center">
+                            <a class="card-link" href="request-access.php">Don’t have an account? Request access</a>
+                        </p>
                     <?php endif; ?>
-
-                    <form method="post" action="login.php" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
-                        <input type="hidden" name="form_action" value="verify_otp">
-                        <input type="hidden" name="official_email" value="<?= $escape($pendingEmail) ?>">
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="otp_code">6-Digit OTP Verification Code</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-center font-mono text-lg tracking-widest text-slate-900 placeholder:text-slate-400" id="otp_code" name="otp_code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required autofocus>
-                        </div>
-                        <div class="pt-1 space-y-2">
-                            <button class="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
-                                Verify OTP &amp; Sign in
-                            </button>
-                            <a href="login.php?view=login" class="block w-full text-center text-xs font-medium text-slate-500 hover:text-slate-700 py-1">
-                                Cancel and return to log in
-                            </a>
-                        </div>
-                    </form>
-
-                <?php elseif ($step === 'forgot_request'): ?>
-                    <form method="post" action="login.php" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
-                        <input type="hidden" name="form_action" value="forgot_request_code">
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="personal_email">Personal Recovery Email</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" id="personal_email" name="personal_email" type="email" placeholder="your.personal@gmail.com" required>
-                        </div>
-                        <div class="pt-1 space-y-2">
-                            <button class="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
-                                Send 6-Digit Recovery Code
-                            </button>
-                            <a href="login.php?view=login" class="block w-full text-center text-xs font-medium text-slate-500 hover:text-slate-700 py-1">
-                                Back to log in
-                            </a>
-                        </div>
-                    </form>
-
-                <?php elseif ($step === 'forgot_reset'): ?>
-                    <?php if ($recoveryPreview !== ''): ?>
-                        <div class="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-                            <div class="flex items-center justify-between">
-                                <span class="font-semibold">Recovery Code Preview (Testing Mode):</span>
-                                <button type="button" onclick="document.getElementById('recovery_code').value='<?= $escape($recoveryPreview) ?>'" class="rounded bg-blue-700 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-blue-800">
-                                    Auto-fill Code
-                                </button>
-                            </div>
-                            <p class="mt-1 font-mono text-base font-bold tracking-widest text-blue-700"><?= $escape($recoveryPreview) ?></p>
-                        </div>
-                    <?php endif; ?>
-
-                    <form method="post" action="login.php" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
-                        <input type="hidden" name="form_action" value="forgot_reset_password">
-                        <input type="hidden" name="personal_email" value="<?= $escape($recoveryEmail) ?>">
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="recovery_code">6-Digit Recovery Code</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-center font-mono text-base tracking-widest text-slate-900" id="recovery_code" name="recovery_code" type="text" maxlength="6" placeholder="000000" required>
-                        </div>
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="new_password">New Password</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" id="new_password" name="new_password" type="password" minlength="8" placeholder="At least 8 characters" required>
-                        </div>
-                        <div class="pt-1 space-y-2">
-                            <button class="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
-                                Reset Password
-                            </button>
-                            <a href="login.php?view=login" class="block w-full text-center text-xs font-medium text-slate-500 hover:text-slate-700 py-1">
-                                Back to log in
-                            </a>
-                        </div>
-                    </form>
-
-                <?php else: ?>
-                    <form method="post" action="login.php" class="space-y-4">
-                        <input type="hidden" name="csrf_token" value="<?= $escape($_SESSION['csrf_token']) ?>">
-                        <input type="hidden" name="form_action" value="login">
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="email">Official Company Email</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" id="email" name="email" type="email" autocomplete="username" placeholder="headadmin@company.com" required>
-                        </div>
-                        <div>
-                            <label class="mb-1.5 block text-sm font-medium text-slate-700" for="password">Password</label>
-                            <input class="form-input w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
-                            <div class="mt-2 text-right">
-                                <a href="login.php?view=forgot" class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2">
-                                    Forgot password?
-                                </a>
-                            </div>
-                        </div>
-                        <div class="pt-2">
-                            <button class="w-full rounded-lg bg-blue-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">
-                                Log in
-                            </button>
-                        </div>
-                    </form>
-                    <p class="mt-5 border-t border-slate-100 pt-4 text-center">
-                        <a class="text-xs font-medium text-blue-700 hover:text-blue-800 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2" href="request-access.php">
-                            Don’t have an account? Request access
-                        </a>
-                    </p>
-                <?php endif; ?>
+                </div>
             </div>
         </section>
     </main>
+
+    <footer class="login-footer text-xs text-slate-600">
+        © <?= date('Y') ?> Paragon Communications Corp. <span class="mx-1.5 text-slate-400">·</span> Fleet operations, made clearer.
+    </footer>
+
+    <script>
+        (function () {
+            var body = document.body;
+            var videoWrap = document.getElementById('video-wrap');
+            var video = document.getElementById('fleet-video');
+
+            // =========================================================
+            // 1. VIDEO ENGINE: CONTINUOUS PLAYBACK ON ALL SCREENS
+            // (Login, Forgot Password, OTP, Signed In)
+            // =========================================================
+            if (video) {
+                video.muted = true;
+                video.defaultMuted = true;
+                video.loop = true;
+                video.playsInline = true;
+
+                function ensurePlaying() {
+                    if (video.paused) {
+                        var p = video.play();
+                        if (p && typeof p.catch === 'function') {
+                            p.catch(function () {});
+                        }
+                    }
+                }
+
+                // Initial play attempt
+                ensurePlaying();
+
+                // Autoplay unlock: if browser policy paused initial playback, unlock on first user interaction
+                function unlockAutoplay() {
+                    ensurePlaying();
+                    document.removeEventListener('click', unlockAutoplay);
+                    document.removeEventListener('keydown', unlockAutoplay);
+                    document.removeEventListener('touchstart', unlockAutoplay);
+                }
+                document.addEventListener('click', unlockAutoplay, { once: true });
+                document.addEventListener('keydown', unlockAutoplay, { once: true });
+                document.addEventListener('touchstart', unlockAutoplay, { once: true });
+
+                // Seamless continuous loop: never stops at 7s boundary
+                video.addEventListener('timeupdate', function () {
+                    if (video.currentTime >= 6.85) {
+                        video.currentTime = 0.05;
+                    }
+                });
+
+                // Fallback loop if ended event fires
+                video.addEventListener('ended', function () {
+                    video.currentTime = 0.05;
+                    ensurePlaying();
+                });
+
+                // Resume if ever paused
+                video.addEventListener('pause', function () {
+                    setTimeout(ensurePlaying, 250);
+                });
+            }
+
+            // =========================================================
+            // 2. CHOREOGRAPHY & TIMING (0:00 Center -> 0:03 Left)
+            // =========================================================
+            if (body.classList.contains('no-anim')) {
+                // When intro is skipped (OTP, error, or signed-in state):
+                // Video continues playing, focus the first input immediately
+                setTimeout(function () {
+                    var field = document.querySelector('.login-card input:not([type=hidden])');
+                    if (field) {
+                        field.focus({ preventScroll: true });
+                    }
+                }, 300);
+                return;
+            }
+
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                body.classList.add('no-anim');
+                return;
+            }
+
+            // Auto-focus primary field once the 3.0s animation completes
+            setTimeout(function () {
+                var field = document.querySelector('.login-card input:not([type=hidden])');
+                if (field) {
+                    field.focus({ preventScroll: true });
+                }
+            }, 3100);
+        })();
+    </script>
 </body>
 </html>
